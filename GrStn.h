@@ -40,11 +40,29 @@ public:
 
     int packet_no;
     char d_time[32];
-    char g_station[2];
+    char g_station[5];
     char gs_time[32];
 	unsigned char bPacket[4098];
 	BOOL MakeRQ(void);
 	char szWebServerResp[4096];
+	UINT		m_wwwPort ;			// well-known WWW port number
+	UINT		m_nMaxConnects ;	// max number of connections we'll allow
+	UINT		m_nTimeOut ;		// idle-client disconnect limit
+	UINT		m_nSanityTime ;		// watchdog timer period
+	enum SERVER_STATE
+	{
+		ST_NULL,		// not initialized yet
+		ST_WAITING,		// waiting for request
+		ST_SENDING		// send in progress
+	} m_State ;
+	enum TAG_TYPE
+	{
+		TAG_NONE = 0,
+		TAG_AUTO,
+		TAG_FILE
+	} m_nTagType ;
+
+
 
 // Implementation
 

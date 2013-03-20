@@ -4,6 +4,8 @@
 
 #pragma once
 #include <afxinet.h>
+#include "clisten.h"
+#include "cclient.h"
 
 
 // CGrStnDlg dialog
@@ -54,4 +56,12 @@ public:
 	afx_msg void OnEnChangeEditStation();
 	afx_msg void OnBnClickedButtonPingServer();
 	afx_msg void OnBnClickedButtonPingGrstn();
+	CGrStnApp *ptrApp;
+	void CloseAllConnectionAndDisconnect();
+	BOOL CreateOnlyOneSocket(void);
+	void KillSocket ( CClient* pSocket );
+	void CheckIdleConnects();
+	void OnAccept();
+	CListen*	m_pSocket ;			// our document's one and only listening socket (service port)
+	CPtrList	m_listConnects ;	// list of active connections
 };

@@ -3,6 +3,9 @@
 //
 
 #include "stdafx.h"
+#include <afxinet.h>
+#include <afxsock.h>
+#include <Mmsystem.h>
 #include "GrStn.h"
 #include "GrStnDlg.h"
 
@@ -24,6 +27,12 @@ CGrStnApp::CGrStnApp()
 {
 	// TODO: add construction code here,
 	// Place all significant initialization in InitInstance
+	m_MainHttpServer = NULL;
+	m_MainInternetConnection = NULL;
+	m_wwwPort = 80;			// well-known WWW port number
+	m_nMaxConnects = 32;	// max number of connections we'll allow
+	m_nTimeOut = 20;		// idle-client disconnect limit
+	m_nSanityTime = 60;		// watchdog timer period
 }
 
 
@@ -137,6 +146,19 @@ BOOL CGrStnApp::InitInstance()
 	WritePrivateProfileString("Server", "URLPORT", szTemp,szIniFileName);
 	WritePrivateProfileString("Station", "Station", g_station,szIniFileName);
 	WritePrivateProfileString("Station", "PORT", szComPort,szIniFileName);
+	
+	if (m_MainHttpServer)
+	{
+		m_MainHttpServer->Close();
+		delete m_MainHttpServer;
+	}
+
+	if (m_MainInternetConnection)
+	{
+		m_MainInternetConnection->Close();
+		delete m_MainInternetConnection;
+	}
+
 
 	// Since the dialog has been closed, return FALSE so that we exit the
 	//  application, rather than start the application's message pump.
