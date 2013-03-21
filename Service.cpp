@@ -93,51 +93,8 @@ BOOL CClient::ProcessPendingRead()
         else
             return ( FALSE ) ;
     }
-    if (memicmp(&m_buf[0], "POST ", 5) == 0)
+    if (memicmp(&m_buf[0], "POST ", 5) == 0) // ignored 
     {
-        if (ContentLength == 0)
-        {
-            int iS;
-            // search for "\r\nContent-Length:"
-            for (iS = 0; iS < m_irx - strlen(CONTENT_LENGTH); iS++)
-            {
-                if (memicmp(&m_buf[iS], CONTENT_LENGTH,strlen(CONTENT_LENGTH)) == 0)
-                {
-                    int iSs;
-                    // if found get length of data
-                    for (iSs = iS + strlen(CONTENT_LENGTH) + 1; iSs < m_irx; iSs ++)
-                    {
-                        if (m_buf[iSs] != ' ')
-                            ContentLength = atoi(&m_buf[iSs]);
-                        break;
-
-                    }
-                    break;
-                
-                }
-            }
-            if (ContentLength)
-            {
-                int iSl;
-                for (iSl = 0; iSl <= m_irx - 4; iSl++)
-                {
-                    if (memcmp(&m_buf[iSl],"\r\n\r\n", 4) == 0)
-                    {
-                        indxStartContent = m_irx - iSl - 4;
-                        break;
-                    }
-                }
-            }
-        }
-        if ((ContentLength != 0) && (ContentLength <= indxStartContent) )
-        {
-            // this is OK
-        }
-        else
-        {
-            // next portion to read
-    		return ( FALSE ) ;
-        }
     }
 	// split this request up into the list of lines
 	m_buf[m_irx] = '\0' ;	// Make this is an SZ string for parsing.
@@ -149,14 +106,14 @@ BOOL CClient::ProcessPendingRead()
 	{
 		*pEOL = '\0' ;	// make this chunk an SZ string
 		m_cList.AddTail ( CString(pBOL,strlen(pBOL)) ) ; // add to list
-		if (memcmp(pBOL,"Accept:", sizeof("Accept:")-1)==0)
-		{
-			if (strstr(pBOL, "image/vnd.wap.wbmp"))
-				m_WapSupportGif = FALSE;
-			if (strstr(pBOL, "image/gif"))
-				m_WapSupportGif = TRUE;
-
-		}
+		//if (memcmp(pBOL,"Accept:", sizeof("Accept:")-1)==0)
+		//{
+		//	if (strstr(pBOL, "image/vnd.wap.wbmp"))
+		//		m_WapSupportGif = FALSE;
+		//	if (strstr(pBOL, "image/gif"))
+		//		m_WapSupportGif = TRUE;
+		//
+		//}
         *pEOL = '\r' ;  // restore -> may be we will need this buffer again   
 		*pEOL++ ;		// skip '\0'
 		*pEOL++ ;		// skip '\n'
@@ -422,6 +379,8 @@ void CClient::ParseReq()
 			m_cURI.SetAt ( i, '\\' ) ;
 	}
 
+	// this is where all params is processed:
+
 	// add base path
 	//if ( m_cURI[0] != '\\' )
 	//	m_cLocalFNA = ((CCgApp*)AfxGetApp())->m_HTMLPath + CString("\\") + m_cURI ;
@@ -431,9 +390,9 @@ void CClient::ParseReq()
 	// This is a real ugly little hack for MikeAh to use forms/GET
 	// I just snarf the rest of the command line from the query
 	// separator on...
-	if ( ( i = m_cLocalFNA.Find ( '?' ) ) != -1 )
-	{
-	}
+	//if ( ( i = m_cLocalFNA.Find ( '?' ) ) != -1 )
+	//{
+	//}
 
 
 	// 3) parse the rest of the request lines

@@ -67,6 +67,7 @@ public:
 // Implementation
 
 	DECLARE_MESSAGE_MAP()
+	virtual BOOL OnIdle(LONG lCount);
 };
 
 extern CGrStnApp theApp;

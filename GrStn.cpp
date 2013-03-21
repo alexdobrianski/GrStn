@@ -21,6 +21,7 @@ BEGIN_MESSAGE_MAP(CGrStnApp, CWinApp)
 END_MESSAGE_MAP()
 
 
+extern CGrStnDlg *CurentDlgBox;
 // CGrStnApp construction
 
 CGrStnApp::CGrStnApp()
@@ -29,10 +30,12 @@ CGrStnApp::CGrStnApp()
 	// Place all significant initialization in InitInstance
 	m_MainHttpServer = NULL;
 	m_MainInternetConnection = NULL;
-	m_wwwPort = 80;			// well-known WWW port number
+	m_wwwPort = 6921;			// well-known WWW port number
 	m_nMaxConnects = 32;	// max number of connections we'll allow
 	m_nTimeOut = 20;		// idle-client disconnect limit
 	m_nSanityTime = 60;		// watchdog timer period
+	CurentDlgBox = NULL;
+	
 }
 
 
@@ -40,6 +43,7 @@ CGrStnApp::CGrStnApp()
 
 CGrStnApp theApp;
 HINSTANCE hMainInstance;
+
 
 // CGrStnApp initialization
 
@@ -72,6 +76,7 @@ BOOL CGrStnApp::InitInstance()
 	}
 	else
 		return FALSE;
+	AfxSocketInit();
 	GetModuleFileName( m_hInstance, szIniFileName, sizeof(szIniFileName));
 	if (strrchr(szIniFileName, '.'))
 	{
@@ -172,4 +177,12 @@ BOOL CGrStnApp::MakeRQ(void)
 	sprintf(szWebServerRQ,"Post.aspx?packet_type=%s&session_no=%ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
 		packet_type,SessionN,packet_no,g_station,gs_time,d_time,bPacket);
 	return TRUE;
+}
+
+BOOL CGrStnApp::OnIdle(LONG lCount)
+{
+	// TODO: Add your specialized code here and/or call the base class
+	if (CurentDlgBox)
+		CurentDlgBox->CheckIdleConnects();
+	return CWinApp::OnIdle(lCount);
 }

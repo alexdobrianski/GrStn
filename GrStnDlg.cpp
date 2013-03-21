@@ -34,6 +34,8 @@ protected:
 public:
 	afx_msg void OnButtonPingServer();
 	afx_msg void OnButtonPingGrstn();
+protected:
+//	afx_msg LRESULT OnKillSocket(WPARAM wParam, LPARAM lParam);
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
@@ -48,6 +50,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 	ON_COMMAND(IDC_BUTTON_PING_SERVER, &CAboutDlg::OnButtonPingServer)
 	ON_COMMAND(IDC_BUTTON_PING_GRSTN, &CAboutDlg::OnButtonPingGrstn)
+//	ON_MESSAGE(WM_KILL_SOCKET, &CAboutDlg::OnKillSocket)
 END_MESSAGE_MAP()
 
 
@@ -70,6 +73,7 @@ CGrStnDlg::CGrStnDlg(CWnd* pParent /*=NULL*/)
 	m_Station = _T("");
 	ptrApp = ((CGrStnApp*)AfxGetApp());
 	CurentDlgBox = this;
+	FirstRun = FALSE;
 }
 
 void CGrStnDlg::DoDataExchange(CDataExchange* pDX)
@@ -105,8 +109,15 @@ BEGIN_MESSAGE_MAP(CGrStnDlg, CDialogEx)
 	ON_EN_CHANGE(IDC_EDIT_STATION, &CGrStnDlg::OnEnChangeEditStation)
 	ON_BN_CLICKED(IDC_BUTTON_PING_SERVER, &CGrStnDlg::OnBnClickedButtonPingServer)
 	ON_BN_CLICKED(IDC_BUTTON_PING_GRSTN, &CGrStnDlg::OnBnClickedButtonPingGrstn)
+	ON_BN_CLICKED(IDOK, &CGrStnDlg::OnBnClickedOk)
+//	ON_COMMAND(WM_KILL_SOCKET, &CGrStnDlg::OnWmKillSocket)
+//	ON_COMMAND(IDNO, &CGrStnDlg::OnIdno)
+//ON_WM_KILLFOCUS()
+ON_MESSAGE(WM_KILL_SOCKET, &CGrStnDlg::OnKillSocket)
+ON_WM_TIMER()
 END_MESSAGE_MAP()
 
+//ON_MESSAGE(WM_KILL_SOCKET, OnKillSocket)
 
 // CGrStnDlg message handlers
 
@@ -195,6 +206,13 @@ void CGrStnDlg::OnSysCommand(UINT nID, LPARAM lParam)
 
 void CGrStnDlg::OnPaint()
 {
+	if (FirstRun == FALSE)
+	{
+		FirstRun = TRUE;
+		
+		CreateOnlyOneSocket();
+		SetTimer(901,10000,NULL);
+	}
 	if (IsIconic())
 	{
 		CPaintDC dc(this); // device context for painting
@@ -590,4 +608,56 @@ void CGrStnDlg::CloseAllConnectionAndDisconnect()
 	m_pSocket->Close();
 	delete m_pSocket ;	// release the listening socket
 
+}
+
+
+void CGrStnDlg::OnBnClickedOk()
+{
+	// TODO: Add your control notification handler code here
+	CurentDlgBox = NULL;
+	KillTimer(901);
+	CloseAllConnectionAndDisconnect();
+	CDialogEx::OnOK();
+}
+
+
+//void CGrStnDlg::OnWmKillSocket()
+//{
+//	// TODO: Add your command handler code here
+//}
+
+
+//void CGrStnDlg::OnIdno()
+//{
+//	// TODO: Add your command handler code here
+//}
+
+
+//void CGrStnDlg::OnKillFocus(CWnd* pNewWnd)
+//{
+//	CDialogEx::OnKillFocus(pNewWnd);
+//
+//	// TODO: Add your message handler code here
+//}
+
+
+//afx_msg LRESULT CAboutDlg::OnKillSocket(WPARAM wParam, LPARAM lParam)
+//{
+//	return 0;
+//}
+
+
+afx_msg LRESULT CGrStnDlg::OnKillSocket(WPARAM wParam, LPARAM lParam)
+{
+	KillSocket ( (CClient*)lParam ) ;
+	return 0;
+}
+
+
+void CGrStnDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: Add your message handler code here and/or call default
+	CheckIdleConnects();
+
+	CDialogEx::OnTimer(nIDEvent);
 }

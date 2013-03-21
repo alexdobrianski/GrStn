@@ -64,4 +64,13 @@ public:
 	void OnAccept();
 	CListen*	m_pSocket ;			// our document's one and only listening socket (service port)
 	CPtrList	m_listConnects ;	// list of active connections
+	BOOL FirstRun;
+	afx_msg void OnBnClickedOk();
+//	afx_msg void OnWmKillSocket();
+//	afx_msg void OnIdno();
+//	afx_msg void OnKillFocus(CWnd* pNewWnd);
+protected:
+	afx_msg LRESULT OnKillSocket(WPARAM wParam, LPARAM lParam);
+public:
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };
