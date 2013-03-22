@@ -62,7 +62,11 @@ public:
 		TAG_FILE
 	} m_nTagType ;
 
-
+	BOOL SessionNSet;
+	BOOL PacketUpLinkSet;
+	unsigned char bPacketUpLink[4098];
+	BOOL UpLinkDone;
+	unsigned char bPacketDownLink[4098];
 
 // Implementation
 

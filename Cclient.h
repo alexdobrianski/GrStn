@@ -37,6 +37,7 @@ public:
 	CString		client ;
 	long		status ;
 
+
  
 
 	// These are used for servicing the request
@@ -47,6 +48,9 @@ public:
 	BOOL			m_bHTTP11 ;		// HTTP 1.0 format?
  	CString			m_cURI ;			// requested file name
  	CString			m_cLocalFNA ;	// constructed (local) file name
+
+	CStringList		m_cListParam ;		// list of request strings
+
 	enum METHOD_TYPE					// the HTML request methods
 	{
 		METHOD_UNSUPPORTED = 0,

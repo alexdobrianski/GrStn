@@ -380,6 +380,67 @@ void CClient::ParseReq()
 	}
 
 	// this is where all params is processed:
+	//first is '?' next one is &
+	((CGrStnApp*)AfxGetApp())->SessionNSet = FALSE;
+	((CGrStnApp*)AfxGetApp())->PacketUpLinkSet = FALSE;
+
+	m_cListParam.RemoveAll();
+	tempmsg = new char[m_cURI.GetLength()+1] ;	// allow for EOS
+	memset(tempmsg,0,m_cURI.GetLength()+1);
+	strcpy ( tempmsg, m_cURI ) ;
+	pBOL = tempmsg ;
+	for ( char *pEOL = strpbrk ( pBOL, "?" ) ;
+		  pEOL ;
+		  pEOL = strpbrk ( pBOL, "&" ) )
+	{
+		*pEOL = '\0' ;
+		CString tempToken ( pBOL, strlen(pBOL) ) ;
+		*pEOL++ ;	// skip '\0'
+		char *pEQ = strpbrk ( pBOL, "=" );
+		if (pEQ) // parameter with XXX=
+		{
+			CString eqToken ( pEQ+1, strlen(pEQ+1) ) ;
+			if (memcmp(pBOL, "session_no=", (pEQ-pBOL)) == 0)
+			{
+				((CGrStnApp*)AfxGetApp())->SessionN = atol(pEQ+1);
+				((CGrStnApp*)AfxGetApp())->SessionNSet = TRUE;
+			}
+			else if (memcmp(pBOL, "package=", (pEQ-pBOL)) == 0)
+			{
+				strcpy((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink,pEQ+1);
+				((CGrStnApp*)AfxGetApp())->PacketUpLinkSet = TRUE;
+			}
+		}
+		pBOL = pEOL ;
+		m_cListParam.AddTail ( tempToken ) ;
+		
+	}
+	// save whatever's left as the last token
+	CString EndToken ( pBOL, strlen(pBOL) ) ;
+	m_cListParam.AddTail ( EndToken ) ;
+	char *pEQ = strpbrk ( pBOL, "=" );
+	if (pEQ) // parameter with XXX=
+	{
+		CString eqToken ( pEQ+1, strlen(pEQ+1) ) ;
+		if (memcmp(pBOL, "session_no=", (pEQ-pBOL)) == 0)
+		{
+			((CGrStnApp*)AfxGetApp())->SessionN = atol(pEQ+1);
+			((CGrStnApp*)AfxGetApp())->SessionNSet = TRUE;
+		}
+		else if (memcmp(pBOL, "package=", (pEQ-pBOL)) == 0)
+		{
+			strcpy((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink,pEQ+1);
+			((CGrStnApp*)AfxGetApp())->PacketUpLinkSet = TRUE;
+		}
+	}
+	delete tempmsg ;
+	((CGrStnApp*)AfxGetApp())->UpLinkDone = FALSE;
+	if (((CGrStnApp*)AfxGetApp())->SessionNSet && ((CGrStnApp*)AfxGetApp())->PacketUpLinkSet)
+	{
+		// packet was received from mission Control website to transfer to a GroundStation communication system or to 
+		// ground station controls
+		((CGrStnApp*)AfxGetApp())->UpLinkDone = TRUE;
+	}
 
 	// add base path
 	//if ( m_cURI[0] != '\\' )
@@ -427,6 +488,24 @@ void CClient::ProcessReq()
 	{
 //		m_pDoc->VMessage ( "   Unknown method requested: %s\n", m_cURI ) ;
 		SendCannedMsg ( 405, m_cURI ) ;
+		return ;
+	}
+	if (((CGrStnApp*)AfxGetApp())->UpLinkDone) // communication packet was send to a GrStn needs to send positive responce
+	{
+		CString OkMessage = "<HTML>\n<HEAD>\n<TITLE> g_station=";
+		OkMessage+=((CGrStnApp*)AfxGetApp())->g_station;
+		OkMessage+="WEB SERVER</TITLE>\n</HEAD>\n<BODY>\nPage OK\n</BODY>\n</HTML>\n";
+		SendReplyHeaderm0 ( "ok.html", OkMessage.GetLength());
+		SendData ( OkMessage );
+		return ;
+	}
+	else // communication with ground station hardware is not valable needs to send negative responce 
+	{
+		CString OkMessage = "<HTML>\n<HEAD>\n<TITLE> g_station=";
+		OkMessage+=((CGrStnApp*)AfxGetApp())->g_station;
+		OkMessage+="WEB SERVER</TITLE>\n</HEAD>\n<BODY>\nPage NOK\n</BODY>\n</HTML>\n";
+		SendReplyHeaderm0 ( "nok.html", OkMessage.GetLength());
+		SendData ( OkMessage );
 		return ;
 	}
 
@@ -530,7 +609,7 @@ BOOL CClient::SendReplyHeaderm0 ( char * filename, DWORD filele )
 	if ( ! SendData ( "MIME-version: 1.0\r\n" ) )
 		return ( FALSE ) ;	// skate from here...
 	// 5
-	char ext[5] ;
+	char ext[9] ;
 	_splitpath ( filename, NULL, NULL, NULL, ext ) ;	
 	tmp = ext ;
 	for ( int i = 0 ; i < MIME_len ; i++ )
