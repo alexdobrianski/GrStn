@@ -383,6 +383,7 @@ void CClient::ParseReq()
 	//first is '?' next one is &
 	((CGrStnApp*)AfxGetApp())->SessionNSet = FALSE;
 	((CGrStnApp*)AfxGetApp())->PacketUpLinkSet = FALSE;
+	((CGrStnApp*)AfxGetApp())->PacketPing = FALSE;
 
 	m_cListParam.RemoveAll();
 	tempmsg = new char[m_cURI.GetLength()+1] ;	// allow for EOS
@@ -410,6 +411,22 @@ void CClient::ParseReq()
 				strcpy((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink,pEQ+1);
 				((CGrStnApp*)AfxGetApp())->PacketUpLinkSet = TRUE;
 			}
+			else if (memcmp(pBOL, "ping=", (pEQ-pBOL)) == 0)
+			{
+				((CGrStnApp*)AfxGetApp())->PacketPing = TRUE;
+			}
+			else if (memcmp(pBOL, "g_station=", (pEQ-pBOL)) == 0)
+			{
+				if (memcmp((char*)((CGrStnApp*)AfxGetApp())->g_station, pEQ+1,1)!= 0)
+				{
+					memset((char*)((CGrStnApp*)AfxGetApp())->g_station, 0, sizeof((char*)((CGrStnApp*)AfxGetApp())->g_station));
+					strncpy((char*)((CGrStnApp*)AfxGetApp())->g_station,pEQ+1,1);
+					//m_pDoc->m_Station=(char*)((CGrStnApp*)AfxGetApp())->g_station;
+					m_pDoc->GetDlgItem(IDC_EDIT_STATION)-> SetWindowText((char*)((CGrStnApp*)AfxGetApp())->g_station );
+					//m_pDoc->GetDlgItem(IDC_EDIT_STATION)->Invalidate(1);
+					//m_pDoc->GetDlgItem(IDC_EDIT_STATION)->UpdateWindow();
+				}
+			}
 		}
 		pBOL = pEOL ;
 		m_cListParam.AddTail ( tempToken ) ;
@@ -432,6 +449,22 @@ void CClient::ParseReq()
 			strcpy((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink,pEQ+1);
 			((CGrStnApp*)AfxGetApp())->PacketUpLinkSet = TRUE;
 		}
+		else if (memcmp(pBOL, "ping=", (pEQ-pBOL)) == 0)
+		{
+			((CGrStnApp*)AfxGetApp())->PacketPing = TRUE;
+		}
+		else if (memcmp(pBOL, "g_station=", (pEQ-pBOL)) == 0)
+		{
+			if (memcmp((char*)((CGrStnApp*)AfxGetApp())->g_station, pEQ+1,1)!= 0)
+			{
+				memset((char*)((CGrStnApp*)AfxGetApp())->g_station, 0, sizeof((char*)((CGrStnApp*)AfxGetApp())->g_station));
+				strncpy((char*)((CGrStnApp*)AfxGetApp())->g_station,pEQ+1,1);
+				//m_pDoc->m_Station = (char*)((CGrStnApp*)AfxGetApp())->g_station;
+				m_pDoc->GetDlgItem(IDC_EDIT_STATION)-> SetWindowText((char*)((CGrStnApp*)AfxGetApp())->g_station );
+				//m_pDoc->GetDlgItem(IDC_EDIT_STATION)->Invalidate(1);
+				//m_pDoc->GetDlgItem(IDC_EDIT_STATION)->UpdateWindow();
+			}
+		}
 	}
 	delete tempmsg ;
 	((CGrStnApp*)AfxGetApp())->UpLinkDone = FALSE;
@@ -442,35 +475,10 @@ void CClient::ParseReq()
 		((CGrStnApp*)AfxGetApp())->UpLinkDone = TRUE;
 	}
 
-	// add base path
-	//if ( m_cURI[0] != '\\' )
-	//	m_cLocalFNA = ((CCgApp*)AfxGetApp())->m_HTMLPath + CString("\\") + m_cURI ;
-	//else
-	//	m_cLocalFNA = ((CCgApp*)AfxGetApp())->m_HTMLPath + m_cURI ;
-
-	// This is a real ugly little hack for MikeAh to use forms/GET
-	// I just snarf the rest of the command line from the query
-	// separator on...
-	//if ( ( i = m_cLocalFNA.Find ( '?' ) ) != -1 )
-	//{
-	//}
-
-
 	// 3) parse the rest of the request lines
 	if ( (! m_bHTTP10)  && (! m_bHTTP11))
 		return ;	// if HTTP 0.9, we're done!
 
-	// parse the client's capabilities here...
-//	if ( ((CCgApp*)AfxGetApp())->m_bDebugOutput )
-//	{
-//		POSITION pos = m_cList.GetHeadPosition() ;
-//		for ( int i = 0 ; i < m_cList.GetCount() ; i++ )
-//		{
-//			// For now, we'll just have a boo at them. Being such a simple
-//			// server, let's not get too concerned with details.
-////			m_pDoc->DbgVMessage ( "   %d>%s\n", i+1, m_cList.GetNext ( pos ) ) ;
-//		}
-//	}
 }	// ParseReq()
 
 
@@ -501,11 +509,22 @@ void CClient::ProcessReq()
 	}
 	else // communication with ground station hardware is not valable needs to send negative responce 
 	{
-		CString OkMessage = "<HTML>\n<HEAD>\n<TITLE> g_station=";
-		OkMessage+=((CGrStnApp*)AfxGetApp())->g_station;
-		OkMessage+="WEB SERVER</TITLE>\n</HEAD>\n<BODY>\nPage NOK\n</BODY>\n</HTML>\n";
-		SendReplyHeaderm0 ( "nok.html", OkMessage.GetLength());
-		SendData ( OkMessage );
+		if (((CGrStnApp*)AfxGetApp())->PacketPing)
+		{
+			CString OkMessage = "<HTML>\n<HEAD>\n<TITLE> g_station=";
+			OkMessage+=((CGrStnApp*)AfxGetApp())->g_station;
+			OkMessage+="WEB SERVER</TITLE>\n</HEAD>\n<BODY>\nPage PING\n</BODY>\n</HTML>\n";
+			SendReplyHeaderm0 ( "nok.html", OkMessage.GetLength());
+			SendData ( OkMessage );
+		}
+		else
+		{
+			CString OkMessage = "<HTML>\n<HEAD>\n<TITLE> g_station=";
+			OkMessage+=((CGrStnApp*)AfxGetApp())->g_station;
+			OkMessage+="WEB SERVER</TITLE>\n</HEAD>\n<BODY>\nPage NOK\n</BODY>\n</HTML>\n";
+			SendReplyHeaderm0 ( "nok.html", OkMessage.GetLength());
+			SendData ( OkMessage );
+		}
 		return ;
 	}
 

@@ -650,6 +650,10 @@ void CGrStnDlg::OnBnClickedOk()
 afx_msg LRESULT CGrStnDlg::OnKillSocket(WPARAM wParam, LPARAM lParam)
 {
 	KillSocket ( (CClient*)lParam ) ;
+	//Invalidate();
+	//UpdateWindow();
+	//SetModified();
+	//m_Station = "q";
 	return 0;
 }
 

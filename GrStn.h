@@ -64,6 +64,7 @@ public:
 
 	BOOL SessionNSet;
 	BOOL PacketUpLinkSet;
+	BOOL PacketPing;
 	unsigned char bPacketUpLink[4098];
 	BOOL UpLinkDone;
 	unsigned char bPacketDownLink[4098];
