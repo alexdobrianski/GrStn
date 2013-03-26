@@ -170,7 +170,7 @@ BOOL CGrStnDlg::OnInitDialog()
 		{
 			iComLines++;
 			m_ComPort.AddString(strPort);
-			if (strcmp(strPort,((CGrStnApp*)AfxGetApp())->szComPort)==0) // that is choosen port
+			if (strcmp(strPort,ptrApp->szComPort)==0) // that is choosen port
 			{
 				iComN = iComLines;
 			}
@@ -181,6 +181,12 @@ BOOL CGrStnDlg::OnInitDialog()
 	if (iComLines)
 	{
 		m_ComPort.SetCurSel(iComN);
+		// it is possible to open com port
+		ptrApp->ItIsPOssibelToOpenComm = ptrApp->OpenCommPort(ptrApp->szComPort);
+	}
+	else
+	{
+		// com port was not choosed et
 	}
 
 
@@ -284,6 +290,7 @@ void CGrStnDlg::OnCbnSelchangeComboComport()
 	memset(szTemp,0, sizeof(szTemp));
 	GetDlgItem(IDC_COMBO_COMPORT)->GetWindowText( szTemp, sizeof(szTemp) );
 	strcpy(ptrApp->szComPort,szTemp);
+	ptrApp->ItIsPOssibelToOpenComm = ptrApp->OpenCommPort(ptrApp->szComPort);
 }
 
 

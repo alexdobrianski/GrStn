@@ -30,6 +30,19 @@ public:
 	char szURL[MAX_PATH];
 	int UrlPort;
 	char szComPort[MAX_PATH];
+	BOOL ItIsPOssibelToOpenComm;
+	HANDLE hComHandle;
+	OVERLAPPED Ovlpd;
+	BOOL OpenCommPort(char *szCom);
+	BOOL WriteFileCom(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToWrite, LPDWORD lpNBytesWritten, LPOVERLAPPED lpOverlapped);
+	BOOL ReadFileCom(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToRead, LPDWORD lpNBytesRead, LPOVERLAPPED lpOverlapped);
+
+	HANDLE		hWaitForHandleExit;
+	HANDLE		hWaitForHandleToReadCommFile;
+	HANDLE		Callback_ReadThread;
+	DWORD		dwServiceStateThreadID;
+	HANDLE		hWaitForHandleDoneExit;
+
 	CHttpConnection* m_MainHttpServer;
 	CInternetSession  *m_MainInternetConnection;
 	char szWebServerRQ[4098];
@@ -68,6 +81,7 @@ public:
 	unsigned char bPacketUpLink[4098];
 	BOOL UpLinkDone;
 	unsigned char bPacketDownLink[4098];
+	DWORD BytesDownLinkRead;
 
 // Implementation
 

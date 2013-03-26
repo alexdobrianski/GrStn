@@ -62,6 +62,8 @@ public:
 	void KillSocket ( CClient* pSocket );
 	void CheckIdleConnects();
 	void OnAccept();
+
+
 	CListen*	m_pSocket ;			// our document's one and only listening socket (service port)
 	CPtrList	m_listConnects ;	// list of active connections
 	BOOL FirstRun;
