@@ -37,6 +37,7 @@ CGrStnApp::CGrStnApp()
 	CurentDlgBox = NULL;
 	ItIsPOssibelToOpenComm = FALSE;
 	hComHandle = INVALID_HANDLE_VALUE;
+	ServerOnline = FALSE;
 }
 
 
@@ -57,26 +58,40 @@ UINT CallbackThread_Proc(LPVOID lParm)
 	
 	hList[0] = theApp.hWaitForHandleExit;
 	hList[1] = theApp.hWaitForHandleToReadCommFile;
+	theApp.BytesDownLinkRead = 0;
 	while(ResWait = ::WaitForMultipleObjects(2,hList,FALSE,INFINITE) != WAIT_OBJECT_0)
 	{
 		if (hList[1] == theApp.hWaitForHandleToReadCommFile) // ?? needs to start read oparation
 		{
 			memset(&theApp.Ovlpd, 0, sizeof(theApp.Ovlpd));
 			theApp.Ovlpd.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL) ;
-			if (ReadFile(theApp.hComHandle, (LPVOID)theApp.bPacketDownLink, sizeof(theApp.bPacketDownLink), &theApp.BytesDownLinkRead, &theApp.Ovlpd))
-			{ // read something in overlapped operation = need to send data to a SatCtrl
-
-				
-			}
-			else  // overlapped operation started needs to wait any bytes to read
+			while(1)
 			{
-				hList[1] = theApp.Ovlpd.hEvent;
+				if (FALSE == ReadFile(theApp.hComHandle, (LPVOID)((char*)(theApp.bPacketDownLink)+theApp.BytesDownLinkRead), sizeof(theApp.bPacketDownLink)-theApp.BytesDownLinkRead, &theApp.BytesDownLinkRead, &theApp.Ovlpd))
+				{
+					hList[1] = theApp.Ovlpd.hEvent;
+					break;
+				}
+				// read something in overlapped operation = need to send data to a SatCtrl
 			}
 		}
 		else // just another read ??
 		{
 			if (GetOverlappedResult(theApp.hComHandle, &theApp.Ovlpd, &theApp.BytesDownLinkRead, FALSE)) // how many was read?
 			{
+				while(1) 
+				{
+					memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
+					memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
+					theApp.packet_no++;
+					theApp.SendDownLink("2");
+					// in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
+					theApp.BytesDownLinkRead = 0;
+					::ResetEvent(theApp.Ovlpd.hEvent);
+					memset((void*)(theApp.bPacketDownLink), 0, sizeof(theApp.bPacketDownLink));
+				    if (FALSE ==ReadFile(theApp.hComHandle, (LPVOID)((char*)(theApp.bPacketDownLink)+theApp.BytesDownLinkRead), sizeof(theApp.bPacketDownLink)-theApp.BytesDownLinkRead, &theApp.BytesDownLinkRead, &theApp.Ovlpd))
+						break;
+				}
 			}
 		}
 	}
@@ -91,6 +106,11 @@ BOOL CGrStnApp::OpenCommPort(char *szCom)
 	COMMTIMEOUTS ct;
 	DCB m_dcb;
 	DWORD EvtMask = EV_RXCHAR | EV_ERR; 
+	if (INVALID_HANDLE_VALUE != hComHandle)
+	{
+		CloseHandle(hComHandle);
+		hComHandle = INVALID_HANDLE_VALUE;
+	}
 	hComHandle = CreateFile(szCom,
 							GENERIC_READ | GENERIC_WRITE,
                             0, 
@@ -101,7 +121,7 @@ BOOL CGrStnApp::OpenCommPort(char *szCom)
 	if (INVALID_HANDLE_VALUE != hComHandle)
     {
 		GetCommTimeouts( hComHandle, &ct );
-		ct.ReadIntervalTimeout = MAXDWORD;
+		ct.ReadIntervalTimeout = 100;
 		ct.ReadTotalTimeoutMultiplier = MAXDWORD;
 		ct.ReadTotalTimeoutConstant = 100000;
 		ct.WriteTotalTimeoutMultiplier = 5;
@@ -341,10 +361,58 @@ BOOL CGrStnApp::InitInstance()
 
 BOOL CGrStnApp::MakeRQ(void)
 {
+	char tmpWebServerResp[4096*3];
+	int iOutptr, iInptr;
+	SYSTEMTIME SystemTime;
+	GetSystemTime(  &SystemTime  );
+	CTime rTime ( SystemTime );
+	char szTemp[MAX_PATH];
+	sprintf(szTemp, "%03d",SystemTime.wMilliseconds);
+	CString Ct = rTime.FormatGmt("%m/%d/%y %H:%M:%S.");
+	Ct = Ct + szTemp;
+	strcpy(gs_time, (char*)Ct.GetString());
+	strcpy(d_time, (char*)Ct.GetString());
+	memset(tmpWebServerResp, 0, sizeof(tmpWebServerResp));
+	for (iInptr= 0,iOutptr=0; iInptr< BytesDownLinkRead;iInptr++)
+	{
+		if ((bPacket[iInptr] >= '0' && bPacket[iInptr] <= '9') ||
+			(bPacket[iInptr] >= 'a' && bPacket[iInptr] <= 'z') ||
+			(bPacket[iInptr] >= 'A' && bPacket[iInptr] <= 'Z') ||
+			(bPacket[iInptr] == '/') ||
+			(bPacket[iInptr] == ';') ||
+			(bPacket[iInptr] == '=') ||
+			(bPacket[iInptr] == '?') ||
+			(bPacket[iInptr] == '@') ||
+			(bPacket[iInptr] == ':') ||
+			(bPacket[iInptr] == '!') ||
+            (bPacket[iInptr] == '#') ||
+			(bPacket[iInptr] == '*') ||
+			(bPacket[iInptr] == '_') ||
+			(bPacket[iInptr] == '\'')
+			)
+		{
+			tmpWebServerResp[iOutptr++] = bPacket[iInptr];
+		}
+		else
+		{
+			tmpWebServerResp[iOutptr++]='%';
+			if ((bPacket[iInptr]>>4) >= 10)
+				tmpWebServerResp[iOutptr++] = 'A'+(bPacket[iInptr]>>4)-10;
+			else
+				tmpWebServerResp[iOutptr++] = '0'+(bPacket[iInptr]>>4);
+			if ((bPacket[iInptr]&0x0f) >= 10)
+				tmpWebServerResp[iOutptr++] = 'A'+(bPacket[iInptr]& 0x0f)-10;
+			else
+				tmpWebServerResp[iOutptr++] = '0'+(bPacket[iInptr]& 0x0f);
+		}
+	}
+	tmpWebServerResp[iOutptr++]=0;
+
 	//sprintf(szWebServerRQ,"http://%s:%d/Post.aspx?packet_type=%s&session_no=%ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&bPacket=%s",
 	//	szURL, UrlPort, packet_type,SessionN,packet_no,g_station,gs_time,d_time,bPacket);
-	sprintf(szWebServerRQ,"Post.aspx?packet_type=%s&session_no=%ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
-		packet_type,SessionN,packet_no,g_station,gs_time,d_time,bPacket);
+
+	sprintf(szWebServerRQ,"Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
+		packet_type,SessionN,packet_no,g_station,gs_time,d_time,tmpWebServerResp);
 	return TRUE;
 }
 
@@ -354,6 +422,119 @@ BOOL CGrStnApp::OnIdle(LONG lCount)
 	if (CurentDlgBox)
 		CurentDlgBox->CheckIdleConnects();
 	return CWinApp::OnIdle(lCount);
+
+}
+
+BOOL CGrStnApp::SendDownLink(char *pktType)
+{
+	char szTemp[_MAX_PATH];
+	ServerOnline = FALSE;
+	if (m_MainHttpServer == NULL)
+	{
+		m_MainInternetConnection =
+				new CInternetSession("SessionToControlServer",
+				12,INTERNET_OPEN_TYPE_DIRECT,
+				NULL, // proxi name
+				NULL, // proxi bypass
+				INTERNET_FLAG_DONT_CACHE|INTERNET_FLAG_TRANSFER_BINARY);
+		try
+		{
+			m_MainHttpServer = 
+						m_MainInternetConnection->GetHttpConnection( 
+						szURL, 
+						0,
+						UrlPort,
+						NULL,
+						NULL );
+
+		}
+		catch(CInternetException *e)
+		{
+			m_MainHttpServer = NULL;
+		}
+	}
+	if (m_MainHttpServer)
+	{
+		if (SessionN == 0)
+			SessionN = 0xffffffff;
+		strcpy(packet_type,pktType); // test from Ground Station
+		//03/19/13 08:13:09.937
+		if (MakeRQ())
+		{
+			CHttpFile* myCHttpFile = NULL;
+			try
+			{
+				myCHttpFile = m_MainHttpServer->OpenRequest( CHttpConnection::HTTP_VERB_GET,
+					szWebServerRQ,
+					NULL,//((CGrStnApp*)AfxGetApp())->szLoginRQ,
+					NULL,//12345678,
+					NULL, 
+					NULL, 
+					INTERNET_FLAG_EXISTING_CONNECT|
+					INTERNET_FLAG_DONT_CACHE|
+					INTERNET_FLAG_RELOAD );
+			}
+			catch(CInternetException *e)
+			{
+				myCHttpFile = NULL;
+			}
+
+			if (myCHttpFile !=NULL)
+			{
+				try
+				{
+					myCHttpFile->SendRequest();
+					memset(szWebServerResp, 0, sizeof(szWebServerResp));
+					{
+						DWORD dwSize;
+						CString strSize;
+						myCHttpFile->QueryInfo(HTTP_QUERY_CONTENT_LENGTH,strSize);
+						dwSize = atoi(strSize.GetString());
+						ServerOnline = TRUE;
+						if (dwSize > (sizeof(szWebServerResp)-1))
+						{
+							for (DWORD dwread=0; dwread < dwSize; dwread+= (sizeof(szWebServerResp)-1))
+							{
+								if ((dwSize - dwread) > (sizeof(szWebServerResp)-1))
+									myCHttpFile->Read(&szWebServerResp,(sizeof(szWebServerResp)-1));
+								else
+									myCHttpFile->Read(&szWebServerResp,(dwSize - dwread));
+							}
+						}
+						else
+							myCHttpFile->Read(&szWebServerResp,dwSize);
+						if (strstr((char*)szWebServerResp,"MAX_session_no="))
+						{
+							char *szNum = strstr((char*)szWebServerResp,"MAX_session_no=");
+							SessionN = atol(szNum+sizeof("MAX_session_no=")-1);
+							SessionNSet = TRUE;
+							sprintf(szTemp,"%ld", SessionN);
+							CurentDlgBox->GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
+							CString strTemp;
+							CurentDlgBox->GetDlgItem(IDC_EDIT_DOWNLINK)->GetWindowTextA(strTemp);
+							strTemp += "\r\n\0";
+							strTemp += (char*)bPacket;
+							CurentDlgBox->GetDlgItem(IDC_EDIT_DOWNLINK)->SetWindowTextA(strTemp);
+							
+							CurentDlgBox->GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
+						}
+					}
+					
+				}
+				catch(CInternetException *e)
+				{
+					//ptrApp->m_MainHttpServer = NULL;
+				}
+				myCHttpFile->Close();
+				delete myCHttpFile;
+			}
+		}
+	}
+	if (ServerOnline)
+		CurentDlgBox->GetDlgItem(IDC_STATIC_SERVER_STATUS)->SetWindowTextA("OnLine");
+	else
+		CurentDlgBox->GetDlgItem(IDC_STATIC_SERVER_STATUS)->SetWindowTextA("OffLine");
+	return TRUE;
 }
 
 

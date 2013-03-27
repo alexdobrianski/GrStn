@@ -55,9 +55,9 @@ public:
     char d_time[32];
     char g_station[5];
     char gs_time[32];
-	unsigned char bPacket[4098];
+	unsigned char bPacket[4096];
 	BOOL MakeRQ(void);
-	char szWebServerResp[4096];
+	char szWebServerResp[4096*5];
 	UINT		m_wwwPort ;			// well-known WWW port number
 	UINT		m_nMaxConnects ;	// max number of connections we'll allow
 	UINT		m_nTimeOut ;		// idle-client disconnect limit
@@ -82,11 +82,14 @@ public:
 	BOOL UpLinkDone;
 	unsigned char bPacketDownLink[4098];
 	DWORD BytesDownLinkRead;
+	BOOL ServerOnline;
+	BOOL SendDownLink(char *pktType);
 
 // Implementation
 
 	DECLARE_MESSAGE_MAP()
 	virtual BOOL OnIdle(LONG lCount);
+	
 };
 
 extern CGrStnApp theApp;

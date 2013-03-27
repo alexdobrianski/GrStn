@@ -124,6 +124,7 @@ END_MESSAGE_MAP()
 BOOL CGrStnDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
+	char szTempComName[MAX_PATH];
 
 	// Add "About..." menu item to system menu.
 
@@ -151,7 +152,7 @@ BOOL CGrStnDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	int iComN = 0;
+	int iComN = -1;
 	int iComLines = 0;
 	for(int i=1; i<=8; i++)	
 	{
@@ -168,6 +169,7 @@ BOOL CGrStnDlg::OnInitDialog()
 		
 		if(ret)
 		{
+			strcpy(szTempComName,strPort);
 			iComLines++;
 			m_ComPort.AddString(strPort);
 			if (strcmp(strPort,ptrApp->szComPort)==0) // that is choosen port
@@ -178,17 +180,22 @@ BOOL CGrStnDlg::OnInitDialog()
 		
 		delete [] lpCC;
 	}
-	if (iComLines)
+	if (iComN>0)
 	{
-		m_ComPort.SetCurSel(iComN);
+		m_ComPort.SetCurSel(iComN-1);
 		// it is possible to open com port
 		ptrApp->ItIsPOssibelToOpenComm = ptrApp->OpenCommPort(ptrApp->szComPort);
 	}
 	else
 	{
-		// com port was not choosed et
+		// com port was not choosed et : choose last in list
+		m_ComPort.SetCurSel(iComLines-1);
+		strcpy(ptrApp->szComPort, szTempComName);
+		// it is possible to open com port
+		ptrApp->ItIsPOssibelToOpenComm = ptrApp->OpenCommPort(ptrApp->szComPort);
 	}
-
+	// now need to ping server and get MAX session_N
+	OnBnClickedButtonPingServer();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -306,6 +313,8 @@ void CGrStnDlg::OnEnChangeEditStation()
 void CGrStnDlg::OnBnClickedButtonPingServer()
 {
 	// TODO: Add your control notification handler code here
+	char szTemp[_MAX_PATH];
+	ptrApp->ServerOnline = FALSE;
 	if (ptrApp->m_MainHttpServer == NULL)
 	{
 		ptrApp->m_MainInternetConnection =
@@ -332,20 +341,13 @@ void CGrStnDlg::OnBnClickedButtonPingServer()
 	}
 	if (((CGrStnApp*)AfxGetApp())->m_MainHttpServer)
 	{
-		ptrApp->SessionN = 0xffffffff;
+		if (ptrApp->SessionN == 0)
+			ptrApp->SessionN = 0xffffffff;
 		strcpy(ptrApp->packet_type,"4"); // test from Ground Station
 		//03/19/13 08:13:09.937
-		SYSTEMTIME SystemTime;
-		GetSystemTime(  &SystemTime  );
-		CTime rTime ( SystemTime );
-		char szTemp[MAX_PATH];
-		sprintf(szTemp, "%03d",SystemTime.wMilliseconds);
-		CString Ct = rTime.FormatGmt("%m/%d/%y %H:%M:%S.");
-		Ct = Ct + szTemp;
-		strcpy(ptrApp->gs_time, (char*)Ct.GetString());
-		strcpy(ptrApp->d_time, (char*)Ct.GetString());
+		
 		ptrApp->packet_no = 0;
-		strcpy((char*)ptrApp->bPacket, "test from ");
+		strcpy((char*)ptrApp->bPacket, "ping from ");
 		strcat((char*)ptrApp->bPacket,ptrApp->g_station);
 
 		if (ptrApp->MakeRQ())
@@ -379,6 +381,7 @@ void CGrStnDlg::OnBnClickedButtonPingServer()
 						CString strSize;
 						myCHttpFile->QueryInfo(HTTP_QUERY_CONTENT_LENGTH,strSize);
 						dwSize = atoi(strSize.GetString());
+						ptrApp->ServerOnline = TRUE;
 						if (dwSize > (sizeof(ptrApp->szWebServerResp)-1))
 						{
 							for (DWORD dwread=0; dwread < dwSize; dwread+= (sizeof(ptrApp->szWebServerResp)-1))
@@ -391,6 +394,14 @@ void CGrStnDlg::OnBnClickedButtonPingServer()
 						}
 						else
 							myCHttpFile->Read(&ptrApp->szWebServerResp,dwSize);
+						if (strstr((char*)ptrApp->szWebServerResp,"MAX_session_no="))
+						{
+							char *szNum = strstr((char*)ptrApp->szWebServerResp,"MAX_session_no=");
+							ptrApp->SessionN = atol(szNum+sizeof("MAX_session_no=")-1);
+							ptrApp->SessionNSet = TRUE;
+							sprintf(szTemp,"%ld", ptrApp->SessionN);
+							GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
+						}
 					}
 					
 				}
@@ -403,7 +414,10 @@ void CGrStnDlg::OnBnClickedButtonPingServer()
 			}
 		}
 	}
-
+	if (ptrApp->ServerOnline)
+		GetDlgItem(IDC_STATIC_SERVER_STATUS)->SetWindowTextA("OnLine");
+	else
+		GetDlgItem(IDC_STATIC_SERVER_STATUS)->SetWindowTextA("OffLine");
 }
 
 

@@ -403,8 +403,11 @@ void CClient::ParseReq()
 			CString eqToken ( pEQ+1, strlen(pEQ+1) ) ;
 			if (memcmp(pBOL, "session_no=", (pEQ-pBOL)) == 0)
 			{
+				char szTemp[MAX_PATH];
 				((CGrStnApp*)AfxGetApp())->SessionN = atol(pEQ+1);
 				((CGrStnApp*)AfxGetApp())->SessionNSet = TRUE;
+				sprintf(szTemp,"%ld",((CGrStnApp*)AfxGetApp())->SessionN);
+				m_pDoc->GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
 			}
 			else if (memcmp(pBOL, "package=", (pEQ-pBOL)) == 0)
 			{
@@ -441,8 +444,11 @@ void CClient::ParseReq()
 		CString eqToken ( pEQ+1, strlen(pEQ+1) ) ;
 		if (memcmp(pBOL, "session_no=", (pEQ-pBOL)) == 0)
 		{
+			char szTemp[MAX_PATH];
 			((CGrStnApp*)AfxGetApp())->SessionN = atol(pEQ+1);
 			((CGrStnApp*)AfxGetApp())->SessionNSet = TRUE;
+			sprintf(szTemp,"%ld",((CGrStnApp*)AfxGetApp())->SessionN);
+			m_pDoc->GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
 		}
 		else if (memcmp(pBOL, "package=", (pEQ-pBOL)) == 0)
 		{
@@ -472,7 +478,24 @@ void CClient::ParseReq()
 	{
 		// packet was received from mission Control website to transfer to a GroundStation communication system or to 
 		// ground station controls
-		((CGrStnApp*)AfxGetApp())->UpLinkDone = TRUE;
+		if (((CGrStnApp*)AfxGetApp())->hComHandle != INVALID_HANDLE_VALUE)
+		{
+			DWORD dwWritten;
+			char szAllTexts[16000];
+			CString ListOfLines;
+			((CGrStnApp*)AfxGetApp())->UpLinkDone = TRUE;
+			((CGrStnApp*)AfxGetApp())->WriteFileCom(((CGrStnApp*)AfxGetApp())->hComHandle,
+													((CGrStnApp*)AfxGetApp())->bPacketUpLink,
+													strlen((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink),
+													&dwWritten, NULL);
+			m_pDoc->GetDlgItem(IDC_EDIT_UPLINK)->GetWindowTextA(ListOfLines);
+			ListOfLines += "\r\n\0";
+			ListOfLines += (char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink;
+			m_pDoc->GetDlgItem(IDC_EDIT_UPLINK)->SetWindowTextA(ListOfLines);
+
+		}
+		else
+			((CGrStnApp*)AfxGetApp())->UpLinkDone = FALSE;
 	}
 
 	// 3) parse the rest of the request lines
