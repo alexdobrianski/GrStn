@@ -410,9 +410,13 @@ BOOL CGrStnApp::MakeRQ(void)
 
 	//sprintf(szWebServerRQ,"http://%s:%d/Post.aspx?packet_type=%s&session_no=%ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&bPacket=%s",
 	//	szURL, UrlPort, packet_type,SessionN,packet_no,g_station,gs_time,d_time,bPacket);
-
-	sprintf(szWebServerRQ,"Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
+	if (memcmp(szURL,"localhost",sizeof("localhost")-1)==0)
+		sprintf(szWebServerRQ,"Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
 		packet_type,SessionN,packet_no,g_station,gs_time,d_time,tmpWebServerResp);
+	else
+		sprintf(szWebServerRQ,"SatCtrl/Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
+		packet_type,SessionN,packet_no,g_station,gs_time,d_time,tmpWebServerResp);
+
 	return TRUE;
 }
 
