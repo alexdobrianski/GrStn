@@ -38,6 +38,7 @@ CGrStnApp::CGrStnApp()
 	ItIsPOssibelToOpenComm = FALSE;
 	hComHandle = INVALID_HANDLE_VALUE;
 	ServerOnline = FALSE;
+	packet_no = -1;
 }
 
 
@@ -73,6 +74,20 @@ UINT CallbackThread_Proc(LPVOID lParm)
 					break;
 				}
 				// read something in overlapped operation = need to send data to a SatCtrl
+				memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
+				memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
+				theApp.MakeHex();
+				for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
+				{
+					int iSizeToSend = 512;
+					if ((theApp.iOutptr - iSend) <= 512)
+						iSizeToSend = (theApp.iOutptr - iSend);
+
+					theApp.packet_no++;
+					theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
+				}
+				theApp.BytesDownLinkRead = 0;
+				::ResetEvent(theApp.Ovlpd.hEvent);
 			}
 		}
 		else // just another read ??
@@ -83,8 +98,16 @@ UINT CallbackThread_Proc(LPVOID lParm)
 				{
 					memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
 					memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
-					theApp.packet_no++;
-					theApp.SendDownLink("2");
+					theApp.MakeHex();
+					for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
+					{
+						int iSizeToSend = 512;
+						if ((theApp.iOutptr - iSend) <= 512)
+							iSizeToSend = (theApp.iOutptr - iSend);
+
+						theApp.packet_no++;
+						theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
+					}
 					// in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
 					theApp.BytesDownLinkRead = 0;
 					::ResetEvent(theApp.Ovlpd.hEvent);
@@ -122,7 +145,7 @@ BOOL CGrStnApp::OpenCommPort(char *szCom)
     {
 		GetCommTimeouts( hComHandle, &ct );
 		ct.ReadIntervalTimeout = 100;
-		ct.ReadTotalTimeoutMultiplier = MAXDWORD;
+		ct.ReadTotalTimeoutMultiplier = 1;
 		ct.ReadTotalTimeoutConstant = 100000;
 		ct.WriteTotalTimeoutMultiplier = 5;
 		ct.WriteTotalTimeoutConstant = 1000;
@@ -359,43 +382,22 @@ BOOL CGrStnApp::InitInstance()
 	return FALSE;
 }
 
-BOOL CGrStnApp::MakeRQ(void)
+BOOL CGrStnApp::MakeHex(void)
 {
-	char tmpWebServerResp[4096*3];
-	int iOutptr, iInptr;
-	SYSTEMTIME SystemTime;
-	GetSystemTime(  &SystemTime  );
-	CTime rTime ( SystemTime );
-	char szTemp[MAX_PATH];
-	sprintf(szTemp, "%03d",SystemTime.wMilliseconds);
-	CString Ct = rTime.FormatGmt("%m/%d/%y %H:%M:%S.");
-	Ct = Ct + szTemp;
-	strcpy(gs_time, (char*)Ct.GetString());
-	strcpy(d_time, (char*)Ct.GetString());
+	int iInptr;
 	memset(tmpWebServerResp, 0, sizeof(tmpWebServerResp));
 	for (iInptr= 0,iOutptr=0; iInptr< BytesDownLinkRead;iInptr++)
 	{
 		if ((bPacket[iInptr] >= '0' && bPacket[iInptr] <= '9') ||
 			(bPacket[iInptr] >= 'a' && bPacket[iInptr] <= 'z') ||
-			(bPacket[iInptr] >= 'A' && bPacket[iInptr] <= 'Z') ||
-			(bPacket[iInptr] == '/') ||
-			(bPacket[iInptr] == ';') ||
-			(bPacket[iInptr] == '=') ||
-			(bPacket[iInptr] == '?') ||
-			(bPacket[iInptr] == '@') ||
-			(bPacket[iInptr] == ':') ||
-			(bPacket[iInptr] == '!') ||
-            (bPacket[iInptr] == '#') ||
-			(bPacket[iInptr] == '*') ||
-			(bPacket[iInptr] == '_') ||
-			(bPacket[iInptr] == '\'')
-			)
+			(bPacket[iInptr] >= 'A' && bPacket[iInptr] <= 'Z') //||
+		   )
 		{
 			tmpWebServerResp[iOutptr++] = bPacket[iInptr];
 		}
 		else
 		{
-			tmpWebServerResp[iOutptr++]='%';
+			tmpWebServerResp[iOutptr++]=' ';
 			if ((bPacket[iInptr]>>4) >= 10)
 				tmpWebServerResp[iOutptr++] = 'A'+(bPacket[iInptr]>>4)-10;
 			else
@@ -407,15 +409,32 @@ BOOL CGrStnApp::MakeRQ(void)
 		}
 	}
 	tmpWebServerResp[iOutptr++]=0;
+	return TRUE;
+}
+
+BOOL CGrStnApp::MakeRQ(char *StartPtr, int iLen)
+{
+	char szTemp[4096*4];
+	int iInptr;
+	SYSTEMTIME SystemTime;
+	GetSystemTime(  &SystemTime  );
+	CTime rTime ( SystemTime );
+	sprintf(szTemp, "%03d",SystemTime.wMilliseconds);
+	CString Ct = rTime.FormatGmt("%m/%d/%y %H:%M:%S.");
+	Ct = Ct + szTemp;
+	strcpy(gs_time, (char*)Ct.GetString());
+	strcpy(d_time, (char*)Ct.GetString());
+	memset(szTemp, 0, sizeof(szTemp));
+	memcpy(szTemp, StartPtr, iLen);
 
 	//sprintf(szWebServerRQ,"http://%s:%d/Post.aspx?packet_type=%s&session_no=%ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&bPacket=%s",
 	//	szURL, UrlPort, packet_type,SessionN,packet_no,g_station,gs_time,d_time,bPacket);
 	if (memcmp(szURL,"localhost",sizeof("localhost")-1)==0)
-		sprintf(szWebServerRQ,"Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
-		packet_type,SessionN,packet_no,g_station,gs_time,d_time,tmpWebServerResp);
+		sprintf(szWebServerRQ,"Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%05ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
+		packet_type,SessionN,packet_no,g_station,gs_time,d_time,szTemp);
 	else
-		sprintf(szWebServerRQ,"SatCtrl/Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
-		packet_type,SessionN,packet_no,g_station,gs_time,d_time,tmpWebServerResp);
+		sprintf(szWebServerRQ,"SatCtrl/Post.aspx?packet_type=%s&session_no=%010ld&packet_no=%05ld&g_station=%s&gs_time=%s&d_time=%s&package=%s",
+		packet_type,SessionN,packet_no,g_station,gs_time,d_time,szTemp);
 
 	return TRUE;
 }
@@ -429,7 +448,7 @@ BOOL CGrStnApp::OnIdle(LONG lCount)
 
 }
 
-BOOL CGrStnApp::SendDownLink(char *pktType)
+BOOL CGrStnApp::SendDownLink(char *pktType, char *StartData, int iSizeToSend)
 {
 	char szTemp[_MAX_PATH];
 	ServerOnline = FALSE;
@@ -463,7 +482,7 @@ BOOL CGrStnApp::SendDownLink(char *pktType)
 			SessionN = 0xffffffff;
 		strcpy(packet_type,pktType); // test from Ground Station
 		//03/19/13 08:13:09.937
-		if (MakeRQ())
+		if (MakeRQ(StartData, iSizeToSend))
 		{
 			CHttpFile* myCHttpFile = NULL;
 			try
@@ -516,14 +535,33 @@ BOOL CGrStnApp::SendDownLink(char *pktType)
 							CurentDlgBox->GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
 							CString strTemp;
 							CurentDlgBox->GetDlgItem(IDC_EDIT_DOWNLINK)->GetWindowTextA(strTemp);
-							strTemp += "\r\n\0";
+							int iNL = -1;
+							int iCountNl = 0;
+							CString strPart = strTemp;
+							while((iNL = strPart.Find("\r\n"))>=0)
+							{
+								iCountNl++;
+								strPart = strPart.Mid(iNL+2);
+							}
+							if (iCountNl >17)
+							{
+								strPart = strTemp;
+								for (int iCut = 0; iCut < iCountNl -17; iCut++)
+								{
+									iNL = strPart.Find("\r\n");
+									strPart = strPart.Mid(iNL+2);
+								}
+								strTemp = strPart;
+							}
+							
+							strTemp += "\r\n";
 							strTemp += (char*)bPacket;
-							CurentDlgBox->GetDlgItem(IDC_EDIT_DOWNLINK)->SetWindowTextA(strTemp);
+							CurentDlgBox->m_DownLink.SetWindowText(strTemp);
+							//CurentDlgBox->GetDlgItem(IDC_EDIT_DOWNLINK)->SetWindowTextA(strTemp);
 							
 							CurentDlgBox->GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
 						}
 					}
-					
 				}
 				catch(CInternetException *e)
 				{

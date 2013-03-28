@@ -44,8 +44,8 @@ public:
 //	CStatic m_Session_N;
 	CString m_URL;
 	CString m_URL_PORT;
-	CString m_Uplink;
-	CString m_DownLink;
+//	CString m_Uplink;
+//	CString m_DownLink;
 	CString m_GrStnStatus;
 	CString m_ServerStatus;
 	CString m_SessionN;
@@ -75,4 +75,6 @@ protected:
 	afx_msg LRESULT OnKillSocket(WPARAM wParam, LPARAM lParam);
 public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	CEdit m_UpLink;
+	CEdit m_DownLink;
 };

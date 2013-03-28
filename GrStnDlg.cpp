@@ -65,8 +65,8 @@ CGrStnDlg::CGrStnDlg(CWnd* pParent /*=NULL*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_URL = _T("");
 	m_URL_PORT = _T("");
-	m_Uplink = _T("");
-	m_DownLink = _T("");
+	//  m_Uplink = _T("");
+	//  m_DownLink = _T("");
 	m_GrStnStatus = _T("");
 	m_ServerStatus = _T("");
 	m_SessionN = _T("");
@@ -90,13 +90,15 @@ void CGrStnDlg::DoDataExchange(CDataExchange* pDX)
 	//  DDX_Control(pDX, IDC_STATIC_SESSION_N, m_Session_N);
 	DDX_Text(pDX, IDC_EDIT_URL, m_URL);
 	DDX_Text(pDX, IDC_EDIT_URL_PORT, m_URL_PORT);
-	DDX_Text(pDX, IDC_EDIT_UPLINK, m_Uplink);
-	DDX_Text(pDX, IDC_EDIT_DOWNLINK, m_DownLink);
+	//  DDX_Text(pDX, IDC_EDIT_UPLINK, m_Uplink);
+	//  DDX_Text(pDX, IDC_EDIT_DOWNLINK, m_DownLink);
 	DDX_Text(pDX, IDC_STATIC_GRSTN_STATUS, m_GrStnStatus);
 	DDX_Text(pDX, IDC_STATIC_SERVER_STATUS, m_ServerStatus);
 	DDX_Text(pDX, IDC_STATIC_SESSION_N, m_SessionN);
 	DDX_Text(pDX, IDC_EDIT_STATION, m_Station);
 	DDV_MaxChars(pDX, m_Station, 1);
+	DDX_Control(pDX, IDC_EDIT_UPLINK, m_UpLink);
+	DDX_Control(pDX, IDC_EDIT_DOWNLINK, m_DownLink);
 }
 
 BEGIN_MESSAGE_MAP(CGrStnDlg, CDialogEx)
@@ -346,11 +348,13 @@ void CGrStnDlg::OnBnClickedButtonPingServer()
 		strcpy(ptrApp->packet_type,"4"); // test from Ground Station
 		//03/19/13 08:13:09.937
 		
-		ptrApp->packet_no = 0;
+		//ptrApp->packet_no = -1;
 		strcpy((char*)ptrApp->bPacket, "ping from ");
+		ptrApp->BytesDownLinkRead = sizeof("ping from ")-1;
+		theApp.MakeHex();
 		strcat((char*)ptrApp->bPacket,ptrApp->g_station);
 
-		if (ptrApp->MakeRQ())
+		if (ptrApp->MakeRQ(&ptrApp->tmpWebServerResp[0], ptrApp->iOutptr))
 		{
 			CHttpFile* myCHttpFile = NULL;
 			try
@@ -401,6 +405,15 @@ void CGrStnDlg::OnBnClickedButtonPingServer()
 							ptrApp->SessionNSet = TRUE;
 							sprintf(szTemp,"%ld", ptrApp->SessionN);
 							GetDlgItem(IDC_STATIC_SESSION_N)->SetWindowTextA(szTemp);
+						}
+						// only for a first packet
+						if (ptrApp->packet_no<0)
+						{
+							if (strstr((char*)ptrApp->szWebServerResp,"MAX_packet_no="))
+							{
+								char *szNum = strstr((char*)ptrApp->szWebServerResp,"MAX_packet_no=");
+								ptrApp->packet_no = atol(szNum+sizeof("MAX_packet_no=")-1);
+							}
 						}
 					}
 					

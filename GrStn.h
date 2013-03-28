@@ -56,7 +56,9 @@ public:
     char g_station[5];
     char gs_time[32];
 	unsigned char bPacket[4096];
-	BOOL MakeRQ(void);
+	int iOutptr;
+	char tmpWebServerResp[4096*4];
+	BOOL MakeRQ(char *StartPtr, int iLen);
 	char szWebServerResp[4096*5];
 	UINT		m_wwwPort ;			// well-known WWW port number
 	UINT		m_nMaxConnects ;	// max number of connections we'll allow
@@ -83,7 +85,8 @@ public:
 	unsigned char bPacketDownLink[4098];
 	DWORD BytesDownLinkRead;
 	BOOL ServerOnline;
-	BOOL SendDownLink(char *pktType);
+	BOOL SendDownLink(char *pktType, char *StartData, int iSizeToSend);
+	BOOL MakeHex(void);
 
 // Implementation
 

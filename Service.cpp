@@ -489,9 +489,29 @@ void CClient::ParseReq()
 													strlen((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink),
 													&dwWritten, NULL);
 			m_pDoc->GetDlgItem(IDC_EDIT_UPLINK)->GetWindowTextA(ListOfLines);
-			ListOfLines += "\r\n\0";
+			int iNL = -1;
+			int iCountNl = 0;
+			CString strPart = ListOfLines;
+			while((iNL = strPart.Find("\r\n"))>=0)
+			{
+				iCountNl++;
+				strPart = strPart.Mid(iNL+2);
+			}
+			if (iCountNl >16)
+			{
+				strPart = ListOfLines;
+				for (int iCut = 0; iCut < iCountNl -16; iCut++)
+				{
+					iNL = strPart.Find("\r\n");
+					strPart = strPart.Mid(iNL+2);
+				}
+				ListOfLines = strPart;
+			}
+			
+			ListOfLines += "\r\n";
 			ListOfLines += (char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink;
 			m_pDoc->GetDlgItem(IDC_EDIT_UPLINK)->SetWindowTextA(ListOfLines);
+			((CGrStnApp*)AfxGetApp())->packet_no = 0;
 
 		}
 		else
