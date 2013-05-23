@@ -39,6 +39,7 @@ CGrStnApp::CGrStnApp()
 	hComHandle = INVALID_HANDLE_VALUE;
 	ServerOnline = FALSE;
 	packet_no = -1;
+    SessionNOldProcessed = 0;
 }
 
 
@@ -73,19 +74,22 @@ UINT CallbackThread_Proc(LPVOID lParm)
 					hList[1] = theApp.Ovlpd.hEvent;
 					break;
 				}
-				// read something in overlapped operation = need to send data to a SatCtrl
-				memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
-				memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
-				theApp.MakeHex();
-				for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
-				{
-					int iSizeToSend = 512;
-					if ((theApp.iOutptr - iSend) <= 512)
-						iSizeToSend = (theApp.iOutptr - iSend);
+                if (theApp.BytesDownLinkRead)
+                {
+				    // read something in overlapped operation = need to send data to a SatCtrl
+				    memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
+				    memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
+				    theApp.MakeHex();
+				    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
+				    {
+					    int iSizeToSend = 512;
+					    if ((theApp.iOutptr - iSend) <= 512)
+						    iSizeToSend = (theApp.iOutptr - iSend);
 
-					theApp.packet_no++;
-					theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
-				}
+					    theApp.packet_no++;
+					    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
+				    }
+                }
 				theApp.BytesDownLinkRead = 0;
 				::ResetEvent(theApp.Ovlpd.hEvent);
 			}
@@ -94,27 +98,30 @@ UINT CallbackThread_Proc(LPVOID lParm)
 		{
 			if (GetOverlappedResult(theApp.hComHandle, &theApp.Ovlpd, &theApp.BytesDownLinkRead, FALSE)) // how many was read?
 			{
-				while(1) 
-				{
-					memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
-					memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
-					theApp.MakeHex();
-					for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
-					{
-						int iSizeToSend = 512;
-						if ((theApp.iOutptr - iSend) <= 512)
-							iSizeToSend = (theApp.iOutptr - iSend);
+                if (theApp.BytesDownLinkRead != 0)
+                {
+				    while(1) 
+				    {
+					    memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
+					    memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
+					    theApp.MakeHex();
+					    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
+					    {
+						    int iSizeToSend = 512;
+						    if ((theApp.iOutptr - iSend) <= 512)
+							    iSizeToSend = (theApp.iOutptr - iSend);
 
-						theApp.packet_no++;
-						theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
-					}
-					// in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
-					theApp.BytesDownLinkRead = 0;
-					::ResetEvent(theApp.Ovlpd.hEvent);
-					memset((void*)(theApp.bPacketDownLink), 0, sizeof(theApp.bPacketDownLink));
-				    if (FALSE ==ReadFile(theApp.hComHandle, (LPVOID)((char*)(theApp.bPacketDownLink)+theApp.BytesDownLinkRead), sizeof(theApp.bPacketDownLink)-theApp.BytesDownLinkRead, &theApp.BytesDownLinkRead, &theApp.Ovlpd))
-						break;
-				}
+						    theApp.packet_no++;
+						    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
+					    }
+					    // in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
+					    theApp.BytesDownLinkRead = 0;
+					    ::ResetEvent(theApp.Ovlpd.hEvent);
+					    memset((void*)(theApp.bPacketDownLink), 0, sizeof(theApp.bPacketDownLink));
+				        if (FALSE ==ReadFile(theApp.hComHandle, (LPVOID)((char*)(theApp.bPacketDownLink)+theApp.BytesDownLinkRead), sizeof(theApp.bPacketDownLink)-theApp.BytesDownLinkRead, &theApp.BytesDownLinkRead, &theApp.Ovlpd))
+						    break;
+				    }
+                }
 			}
 		}
 	}
@@ -185,6 +192,50 @@ BOOL CGrStnApp::OpenCommPort(char *szCom)
 		hComHandle = INVALID_HANDLE_VALUE;
 	}
 	return FALSE;
+}
+BOOL CGrStnApp:: WriteFileComHex(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToWrite, LPDWORD lpNBytesWritten, LPOVERLAPPED lpOverlapped)
+{
+    BYTE *bByte=  &bPacketUpLinkBin[0];
+    DWORD BytesToWrite = 0;
+    BOOL bRet = FALSE; 
+    int iStat=0;
+    if (bByte)
+    {
+        for (int i = 0; i < nNBytesToWrite; i++)
+        {
+            switch(iStat)
+            {
+            case 0: 
+                if (((BYTE *)lpBuffer)[i] == '%')
+                    iStat = 1;
+                else
+                    bByte[BytesToWrite++] = ((BYTE *)lpBuffer)[i]; 
+                break;
+            case 1:
+                if (((BYTE *)lpBuffer)[i] <= '9')
+                    bByte[BytesToWrite] = (((BYTE *)lpBuffer)[i] - '0')<<4;
+                else if (((BYTE *)lpBuffer)[i] <= 'F')
+                        bByte[BytesToWrite] = (((BYTE *)lpBuffer)[i] - 'A' + 10)<<4;
+                     else
+                         bByte[BytesToWrite] = (((BYTE *)lpBuffer)[i] - 'a' + 10)<<4;
+                iStat = 2;
+                break;
+            case 2:
+                if (((BYTE *)lpBuffer)[i] <= '9')
+                    bByte[BytesToWrite] |= (((BYTE *)lpBuffer)[i] - '0');
+                else if (((BYTE *)lpBuffer)[i] <= 'F')
+                        bByte[BytesToWrite] |= (((BYTE *)lpBuffer)[i] - 'A' + 10);
+                     else
+                         bByte[BytesToWrite] |= (((BYTE *)lpBuffer)[i] - 'a' + 10);
+                BytesToWrite++;
+                iStat = 0;
+                break;
+            }
+        }
+        bRet = WriteFileCom(hCommFile, bByte, BytesToWrite, lpNBytesWritten, lpOverlapped);
+    }
+    //delete bByte;
+    return bRet;
 }
 BOOL CGrStnApp:: WriteFileCom(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToWrite, LPDWORD lpNBytesWritten, LPOVERLAPPED lpOverlapped)
 {
@@ -397,7 +448,7 @@ BOOL CGrStnApp::MakeHex(void)
 		}
 		else
 		{
-			tmpWebServerResp[iOutptr++]=' ';
+			tmpWebServerResp[iOutptr++]='%';
 			if ((bPacket[iInptr]>>4) >= 10)
 				tmpWebServerResp[iOutptr++] = 'A'+(bPacket[iInptr]>>4)-10;
 			else

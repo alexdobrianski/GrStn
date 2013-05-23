@@ -35,6 +35,7 @@ public:
 	OVERLAPPED Ovlpd;
 	BOOL OpenCommPort(char *szCom);
 	BOOL WriteFileCom(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToWrite, LPDWORD lpNBytesWritten, LPOVERLAPPED lpOverlapped);
+    BOOL WriteFileComHex(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToWrite, LPDWORD lpNBytesWritten, LPOVERLAPPED lpOverlapped);
 	BOOL ReadFileCom(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToRead, LPDWORD lpNBytesRead, LPOVERLAPPED lpOverlapped);
 
 	HANDLE		hWaitForHandleExit;
@@ -48,6 +49,7 @@ public:
 	char szWebServerRQ[4098];
 	char session_no[32];
 	DWORD SessionN;
+    DWORD SessionNOldProcessed;
 	// '1' - upload '2' - download '3' - error '4'- test Ground Station 
     char packet_type[10];
 
@@ -81,7 +83,8 @@ public:
 	BOOL PacketUpLinkSet;
 	BOOL PacketPing;
 	unsigned char bPacketUpLink[4098];
-	BOOL UpLinkDone;
+	unsigned char bPacketUpLinkBin[4098];
+    BOOL UpLinkDone;
 	unsigned char bPacketDownLink[4098];
 	DWORD BytesDownLinkRead;
 	BOOL ServerOnline;

@@ -476,18 +476,24 @@ void CClient::ParseReq()
 	((CGrStnApp*)AfxGetApp())->UpLinkDone = FALSE;
 	if (((CGrStnApp*)AfxGetApp())->SessionNSet && ((CGrStnApp*)AfxGetApp())->PacketUpLinkSet)
 	{
-		// packet was received from mission Control website to transfer to a GroundStation communication system or to 
-		// ground station controls
-		if (((CGrStnApp*)AfxGetApp())->hComHandle != INVALID_HANDLE_VALUE)
-		{
-			DWORD dwWritten;
-			char szAllTexts[16000];
-			CString ListOfLines;
-			((CGrStnApp*)AfxGetApp())->UpLinkDone = TRUE;
-			((CGrStnApp*)AfxGetApp())->WriteFileCom(((CGrStnApp*)AfxGetApp())->hComHandle,
+        // need to protect against resent packet (inet does that strange doubling)
+        if (((CGrStnApp*)AfxGetApp())->SessionNOldProcessed != ((CGrStnApp*)AfxGetApp())->SessionN)
+        {
+            CString ListOfLines;
+    		// packet was received from mission Control website to transfer to a GroundStation communication system or to 
+	    	// ground station controls
+		    if (((CGrStnApp*)AfxGetApp())->hComHandle != INVALID_HANDLE_VALUE)
+		    {
+			    DWORD dwWritten;
+			    char szAllTexts[16000];
+			    
+			    ((CGrStnApp*)AfxGetApp())->UpLinkDone = TRUE;
+			    ((CGrStnApp*)AfxGetApp())->WriteFileComHex(((CGrStnApp*)AfxGetApp())->hComHandle,
 													((CGrStnApp*)AfxGetApp())->bPacketUpLink,
 													strlen((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink),
 													&dwWritten, NULL);
+                ((CGrStnApp*)AfxGetApp())->SessionNOldProcessed = ((CGrStnApp*)AfxGetApp())->SessionN;
+            }
 			m_pDoc->GetDlgItem(IDC_EDIT_UPLINK)->GetWindowTextA(ListOfLines);
 			int iNL = -1;
 			int iCountNl = 0;
