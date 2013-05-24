@@ -477,7 +477,7 @@ void CClient::ParseReq()
 	if (((CGrStnApp*)AfxGetApp())->SessionNSet && ((CGrStnApp*)AfxGetApp())->PacketUpLinkSet)
 	{
         // need to protect against resent packet (inet does that strange doubling)
-        if (((CGrStnApp*)AfxGetApp())->SessionNOldProcessed != ((CGrStnApp*)AfxGetApp())->SessionN)
+        //if (((CGrStnApp*)AfxGetApp())->SessionNOldProcessed != ((CGrStnApp*)AfxGetApp())->SessionN)
         {
             CString ListOfLines;
     		// packet was received from mission Control website to transfer to a GroundStation communication system or to 
@@ -491,7 +491,7 @@ void CClient::ParseReq()
 			    ((CGrStnApp*)AfxGetApp())->WriteFileComHex(((CGrStnApp*)AfxGetApp())->hComHandle,
 													((CGrStnApp*)AfxGetApp())->bPacketUpLink,
 													strlen((char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink),
-													&dwWritten, NULL);
+													&dwWritten, &((CGrStnApp*)AfxGetApp())->OvlpdWrite);
                 ((CGrStnApp*)AfxGetApp())->SessionNOldProcessed = ((CGrStnApp*)AfxGetApp())->SessionN;
             }
 			m_pDoc->GetDlgItem(IDC_EDIT_UPLINK)->GetWindowTextA(ListOfLines);
@@ -518,11 +518,10 @@ void CClient::ParseReq()
 			ListOfLines += (char*)((CGrStnApp*)AfxGetApp())->bPacketUpLink;
 			m_pDoc->GetDlgItem(IDC_EDIT_UPLINK)->SetWindowTextA(ListOfLines);
 			((CGrStnApp*)AfxGetApp())->packet_no = 0;
-
 		}
-		else
-			((CGrStnApp*)AfxGetApp())->UpLinkDone = FALSE;
 	}
+    else
+        ((CGrStnApp*)AfxGetApp())->UpLinkDone = FALSE;
 
 	// 3) parse the rest of the request lines
 	if ( (! m_bHTTP10)  && (! m_bHTTP11))

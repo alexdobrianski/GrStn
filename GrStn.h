@@ -33,6 +33,8 @@ public:
 	BOOL ItIsPOssibelToOpenComm;
 	HANDLE hComHandle;
 	OVERLAPPED Ovlpd;
+    OVERLAPPED OvlpdWrite;
+    BOOL WriteRequested;
 	BOOL OpenCommPort(char *szCom);
 	BOOL WriteFileCom(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToWrite, LPDWORD lpNBytesWritten, LPOVERLAPPED lpOverlapped);
     BOOL WriteFileComHex(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNBytesToWrite, LPDWORD lpNBytesWritten, LPOVERLAPPED lpOverlapped);
@@ -87,10 +89,11 @@ public:
     BOOL UpLinkDone;
 	unsigned char bPacketDownLink[4098];
 	DWORD BytesDownLinkRead;
+    DWORD BytesUplinkWritten;
 	BOOL ServerOnline;
 	BOOL SendDownLink(char *pktType, char *StartData, int iSizeToSend);
 	BOOL MakeHex(void);
-
+    CString MakeItReadable(char * packet, int length);
 // Implementation
 
 	DECLARE_MESSAGE_MAP()

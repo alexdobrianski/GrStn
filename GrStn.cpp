@@ -40,6 +40,7 @@ CGrStnApp::CGrStnApp()
 	ServerOnline = FALSE;
 	packet_no = -1;
     SessionNOldProcessed = 0;
+    WriteRequested = FALSE;
 }
 
 
@@ -232,7 +233,23 @@ BOOL CGrStnApp:: WriteFileComHex(HANDLE hCommFile, LPCVOID lpBuffer, DWORD nNByt
                 break;
             }
         }
-        bRet = WriteFileCom(hCommFile, bByte, BytesToWrite, lpNBytesWritten, lpOverlapped);
+        //bRet = WriteFileCom(hCommFile, bByte, BytesToWrite, lpNBytesWritten, lpOverlapped);
+        // check that prev operation was finished??
+        if (WriteRequested)
+        {
+            GetOverlappedResult(theApp.hComHandle, lpOverlapped, &theApp.BytesUplinkWritten, TRUE);
+        }
+        ::ResetEvent(lpOverlapped->hEvent);
+        if (WriteFile(hCommFile, bByte, BytesToWrite, lpNBytesWritten, lpOverlapped) == FALSE)  // opeartion was started 
+        {
+            WriteRequested = TRUE;
+        }
+        else // was an error
+        {
+            DWORD dwErr = GetLastError();
+            PurgeComm( hCommFile, PURGE_TXCLEAR	| PURGE_RXCLEAR );
+            WriteRequested = FALSE;
+        }
     }
     //delete bByte;
     return bRet;
@@ -356,11 +373,13 @@ BOOL CGrStnApp::InitInstance()
 	hWaitForHandleToReadCommFile = ::CreateEvent(NULL, TRUE, TRUE, NULL);
 	hWaitForHandleDoneExit = ::CreateEvent(NULL, TRUE, TRUE, NULL);
 
-	hWaitForHandleToReadCommFile = ::CreateEvent(NULL, TRUE, TRUE, NULL);
 	::ResetEvent(hWaitForHandleExit);
 	::ResetEvent(hWaitForHandleToReadCommFile);
 
-	Callback_ReadThread = ::CreateThread( NULL,0x1000, (LPTHREAD_START_ROUTINE)CallbackThread_Proc, NULL, 0L, &dwServiceStateThreadID ) ;
+	memset(&theApp.OvlpdWrite, 0, sizeof(theApp.OvlpdWrite));
+	theApp.OvlpdWrite.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL) ;
+
+    Callback_ReadThread = ::CreateThread( NULL,0x1000, (LPTHREAD_START_ROUTINE)CallbackThread_Proc, NULL, 0L, &dwServiceStateThreadID ) ;
 
 
 
@@ -606,7 +625,8 @@ BOOL CGrStnApp::SendDownLink(char *pktType, char *StartData, int iSizeToSend)
 							}
 							
 							strTemp += "\r\n";
-							strTemp += (char*)bPacket;
+							//strTemp += (char*)bPacket;
+                            strTemp += MakeItReadable((char*)bPacket, BytesDownLinkRead);
 							CurentDlgBox->m_DownLink.SetWindowText(strTemp);
 							//CurentDlgBox->GetDlgItem(IDC_EDIT_DOWNLINK)->SetWindowTextA(strTemp);
 							
@@ -628,6 +648,37 @@ BOOL CGrStnApp::SendDownLink(char *pktType, char *StartData, int iSizeToSend)
 	else
 		CurentDlgBox->GetDlgItem(IDC_STATIC_SERVER_STATUS)->SetWindowTextA("OffLine");
 	return TRUE;
+}
+CString CGrStnApp::MakeItReadable(char * packet, int length)
+{
+    CString StrOutput;
+    for (int i = 0; i < length; i++)
+    {
+        if ((packet[i] >= ' ') && (packet[i] <= '~'))
+        {
+            StrOutput += packet[i];
+        }
+        else
+        {
+            StrOutput += "%";
+
+            char Simb1 = (packet[i]>>4)&0x0f;
+            char Simb2 = (packet[i]& 0x0f);
+            if (Simb1>=10)
+                Simb1 = 'A' + Simb1 - 10;
+            else
+                Simb1 = '0' + Simb1;
+            if (Simb2>=10)
+                Simb2 = 'A' + Simb2 - 10;
+            else
+                Simb2 = '0' + Simb2;
+            StrOutput += Simb1;
+            StrOutput += Simb2;
+        }
+            
+
+    }
+    return StrOutput;
 }
 
 
