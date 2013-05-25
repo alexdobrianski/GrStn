@@ -48,7 +48,7 @@ CGrStnApp::CGrStnApp()
 
 CGrStnApp theApp;
 HINSTANCE hMainInstance;
-
+int Icount = 0;
 UINT CallbackThread_Proc(LPVOID lParm)   
 {   
 	UINT uResult;
@@ -58,6 +58,7 @@ UINT CallbackThread_Proc(LPVOID lParm)
 	BOOL bRes;
 	int iRea;
 	long bToRead;
+    DWORD Err;
 	
 	hList[0] = theApp.hWaitForHandleExit;
 	hList[1] = theApp.hWaitForHandleToReadCommFile;
@@ -72,8 +73,20 @@ UINT CallbackThread_Proc(LPVOID lParm)
 			{
 				if (FALSE == ReadFile(theApp.hComHandle, (LPVOID)((char*)(theApp.bPacketDownLink)+theApp.BytesDownLinkRead), sizeof(theApp.bPacketDownLink)-theApp.BytesDownLinkRead, &theApp.BytesDownLinkRead, &theApp.Ovlpd))
 				{
-					hList[1] = theApp.Ovlpd.hEvent;
-					break;
+                    Err = GetLastError();
+                    if (Err == ERROR_IO_PENDING ) // read started == it is possible to wait
+                    {
+                        hList[1] = theApp.Ovlpd.hEvent;
+                        break;
+                    }
+                    else
+                    {
+                        //error on read
+                        PurgeComm(theApp.hComHandle, PURGE_RXCLEAR );
+                        ::ResetEvent(theApp.Ovlpd.hEvent);
+                        theApp.BytesDownLinkRead = 0;
+                        continue;
+                    }
 				}
                 if (theApp.BytesDownLinkRead)
                 {
@@ -99,12 +112,20 @@ UINT CallbackThread_Proc(LPVOID lParm)
 		{
 			if (GetOverlappedResult(theApp.hComHandle, &theApp.Ovlpd, &theApp.BytesDownLinkRead, FALSE)) // how many was read?
 			{
-                if (theApp.BytesDownLinkRead != 0)
+                while(1) 
                 {
-				    while(1) 
+                    Err = GetLastError();
+				    if (theApp.BytesDownLinkRead != 0) // process only when it reads something
 				    {
 					    memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
 					    memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
+#ifdef _TEST_BIN_DATA
+                        theApp.BytesDownLinkRead = 128;
+                        for (int iInptr = 0; iInptr< 128; iInptr++)
+                        {
+                            theApp.bPacket[iInptr] = Icount++;
+                        }
+#endif
 					    theApp.MakeHex();
 					    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
 					    {
@@ -115,12 +136,22 @@ UINT CallbackThread_Proc(LPVOID lParm)
 						    theApp.packet_no++;
 						    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
 					    }
+                    }
+
 					    // in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
-					    theApp.BytesDownLinkRead = 0;
-					    ::ResetEvent(theApp.Ovlpd.hEvent);
-					    memset((void*)(theApp.bPacketDownLink), 0, sizeof(theApp.bPacketDownLink));
-				        if (FALSE ==ReadFile(theApp.hComHandle, (LPVOID)((char*)(theApp.bPacketDownLink)+theApp.BytesDownLinkRead), sizeof(theApp.bPacketDownLink)-theApp.BytesDownLinkRead, &theApp.BytesDownLinkRead, &theApp.Ovlpd))
-						    break;
+					theApp.BytesDownLinkRead = 0;
+					::ResetEvent(theApp.Ovlpd.hEvent);
+					memset((void*)(theApp.bPacketDownLink), 0, sizeof(theApp.bPacketDownLink));
+				    if (FALSE ==ReadFile(theApp.hComHandle, (LPVOID)((char*)(theApp.bPacketDownLink)+theApp.BytesDownLinkRead), sizeof(theApp.bPacketDownLink)-theApp.BytesDownLinkRead, &theApp.BytesDownLinkRead, &theApp.Ovlpd))
+                    {
+                        Err = GetLastError();
+                        if (Err == ERROR_IO_PENDING ) // read started == it is possible to wait
+                            break;
+                        else // error on read needs to clear error
+                        {
+                            PurgeComm(theApp.hComHandle, PURGE_RXCLEAR );
+                            continue;
+                        }
 				    }
                 }
 			}
@@ -452,10 +483,12 @@ BOOL CGrStnApp::InitInstance()
 	return FALSE;
 }
 
+
 BOOL CGrStnApp::MakeHex(void)
 {
 	int iInptr;
 	memset(tmpWebServerResp, 0, sizeof(tmpWebServerResp));
+    
 	for (iInptr= 0,iOutptr=0; iInptr< BytesDownLinkRead;iInptr++)
 	{
 		if ((bPacket[iInptr] >= '0' && bPacket[iInptr] <= '9') ||
@@ -468,10 +501,10 @@ BOOL CGrStnApp::MakeHex(void)
 		else
 		{
 			tmpWebServerResp[iOutptr++]='%';
-			if ((bPacket[iInptr]>>4) >= 10)
-				tmpWebServerResp[iOutptr++] = 'A'+(bPacket[iInptr]>>4)-10;
+			if (((bPacket[iInptr]>>4)&0x0f) >= 10)
+				tmpWebServerResp[iOutptr++] = 'A'+((bPacket[iInptr]>>4)&0x0f)-10;
 			else
-				tmpWebServerResp[iOutptr++] = '0'+(bPacket[iInptr]>>4);
+				tmpWebServerResp[iOutptr++] = '0'+((bPacket[iInptr]>>4)&0x0f);
 			if ((bPacket[iInptr]&0x0f) >= 10)
 				tmpWebServerResp[iOutptr++] = 'A'+(bPacket[iInptr]& 0x0f)-10;
 			else
@@ -490,7 +523,10 @@ BOOL CGrStnApp::MakeRQ(char *StartPtr, int iLen)
 	GetSystemTime(  &SystemTime  );
 	CTime rTime ( SystemTime );
 	sprintf(szTemp, "%03d",SystemTime.wMilliseconds);
-	CString Ct = rTime.FormatGmt("%m/%d/%y %H:%M:%S.");
+	//CString Ct = rTime.FormatGmt("%m/%d/%y %H:%M:%S.");
+    char szFormatTime[100];
+    sprintf(szFormatTime, "%02d/%02d/%02d %02d:%02d%:%02d.",SystemTime.wMonth,SystemTime.wDay,SystemTime.wYear-2000,SystemTime.wHour,SystemTime.wMinute,SystemTime.wSecond);
+    CString Ct = szFormatTime;
 	Ct = Ct + szTemp;
 	strcpy(gs_time, (char*)Ct.GetString());
 	strcpy(d_time, (char*)Ct.GetString());
