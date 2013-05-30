@@ -649,10 +649,10 @@ BOOL CGrStnApp::SendDownLink(char *pktType, char *StartData, int iSizeToSend)
 								iCountNl++;
 								strPart = strPart.Mid(iNL+2);
 							}
-							if (iCountNl >17)
+							if (iCountNl >15)
 							{
 								strPart = strTemp;
-								for (int iCut = 0; iCut < iCountNl -17; iCut++)
+								for (int iCut = 0; iCut < iCountNl -15; iCut++)
 								{
 									iNL = strPart.Find("\r\n");
 									strPart = strPart.Mid(iNL+2);
