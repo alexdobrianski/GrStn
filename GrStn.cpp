@@ -525,7 +525,7 @@ BOOL CGrStnApp::MakeRQ(char *StartPtr, int iLen)
 	sprintf(szTemp, "%03d",SystemTime.wMilliseconds);
 	//CString Ct = rTime.FormatGmt("%m/%d/%y %H:%M:%S.");
     char szFormatTime[100];
-    sprintf(szFormatTime, "%02d/%02d/%02d %02d:%02d%:%02d.",SystemTime.wMonth,SystemTime.wDay,SystemTime.wYear-2000,SystemTime.wHour,SystemTime.wMinute,SystemTime.wSecond);
+    sprintf(szFormatTime, "%02d/%02d/%02d %02d:%02d%:%02d.",SystemTime.wYear-2000,SystemTime.wMonth,SystemTime.wDay,SystemTime.wHour,SystemTime.wMinute,SystemTime.wSecond);
     CString Ct = szFormatTime;
 	Ct = Ct + szTemp;
 	strcpy(gs_time, (char*)Ct.GetString());
