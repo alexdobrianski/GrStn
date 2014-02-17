@@ -199,7 +199,7 @@ BOOL CGrStnApp::OpenCommPort(char *szCom)
 			m_dcb.StopBits = ONESTOPBIT;
 			m_dcb.fBinary  = TRUE;
 			m_dcb.fParity  = FALSE;
-			m_dcb.fOutxCtsFlow    = FALSE;
+			m_dcb.fOutxCtsFlow    = TRUE;//FALSE;
 			m_dcb.fOutxDsrFlow    = FALSE;
 			m_dcb.fRtsControl     = RTS_CONTROL_DISABLE;
 			m_dcb.fDtrControl     = DTR_CONTROL_DISABLE;
