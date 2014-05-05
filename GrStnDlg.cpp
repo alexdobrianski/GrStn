@@ -610,6 +610,7 @@ BOOL CGrStnDlg::CreateOnlyOneSocket(void)
 		}
 		return ( FALSE ) ;
 	}
+//    AfxMessageBox ( "WWW socket Create" ) ;
 
 	m_pSocket->AsyncSelect( );
 	// start listening for requests and set running state
