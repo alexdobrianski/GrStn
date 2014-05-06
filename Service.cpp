@@ -503,10 +503,10 @@ void CClient::ParseReq()
 				iCountNl++;
 				strPart = strPart.Mid(iNL+2);
 			}
-			if (iCountNl >15)
+			if (iCountNl >MAX_LINES)
 			{
 				strPart = ListOfLines;
-				for (int iCut = 0; iCut < iCountNl -15; iCut++)
+				for (int iCut = 0; iCut < iCountNl -MAX_LINES; iCut++)
 				{
 					iNL = strPart.Find("\r\n");
 					strPart = strPart.Mid(iNL+2);

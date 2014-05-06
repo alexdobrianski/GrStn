@@ -11,7 +11,7 @@
 
 #include "resource.h"		// main symbols
 
-
+#define MAX_LINES 10
 // CGrStnApp:
 // See GrStn.cpp for the implementation of this class
 //

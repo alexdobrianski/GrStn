@@ -377,7 +377,11 @@ BOOL CGrStnApp::InitInstance()
 		*strrchr(szIniFileName, '.') = 0;
 		strcat(szIniFileName, ".ini");
 	}
-
+#define RESPONCE_WAS_SENT 0x40
+    unsigned char ATCMD =0;
+    ATCMD |= RESPONCE_WAS_SENT;
+    if (!(ATCMD & RESPONCE_WAS_SENT))
+       ATCMD &= (RESPONCE_WAS_SENT ^0xff);
 	char szTemp[MAX_PATH];
 
 	GetModuleFileName( m_hInstance, szTemp, sizeof(szTemp));
@@ -649,10 +653,10 @@ BOOL CGrStnApp::SendDownLink(char *pktType, char *StartData, int iSizeToSend)
 								iCountNl++;
 								strPart = strPart.Mid(iNL+2);
 							}
-							if (iCountNl >15)
+							if (iCountNl >MAX_LINES)
 							{
 								strPart = strTemp;
-								for (int iCut = 0; iCut < iCountNl -15; iCut++)
+								for (int iCut = 0; iCut < iCountNl -MAX_LINES; iCut++)
 								{
 									iNL = strPart.Find("\r\n");
 									strPart = strPart.Mid(iNL+2);
