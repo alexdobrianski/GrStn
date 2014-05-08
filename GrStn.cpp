@@ -41,6 +41,12 @@ CGrStnApp::CGrStnApp()
 	packet_no = -1;
     SessionNOldProcessed = 0;
     WriteRequested = FALSE;
+    StatusDistance = 0;
+    memset(DTimeEarth, 0, sizeof(DTimeEarth));
+    memset(DTimeLuna, 0, sizeof(DTimeLuna));
+    memset(Distance, 0, sizeof(Distance));
+    iMeasurements = 0;
+
 }
 
 
@@ -93,13 +99,23 @@ UINT CallbackThread_Proc(LPVOID lParm)
 				    // read something in overlapped operation = need to send data to a SatCtrl
 				    memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
 				    memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
+                    for (int iAn=0; iAn <theApp.BytesDownLinkRead; iAn++)
+                    {
+                        theApp.PrePorocess(theApp.bPacket[iAn]);
+                    }
 				    theApp.MakeHex();
-				    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
+                    int iSizeToSend = 512;
+				    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=iSizeToSend)
 				    {
-					    int iSizeToSend = 512;
 					    if ((theApp.iOutptr - iSend) <= 512)
 						    iSizeToSend = (theApp.iOutptr - iSend);
-
+                        else
+                        {
+                            if (theApp.tmpWebServerResp[iSend+iSizeToSend] == '%')
+                                ;
+                            else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 2] == '%')
+                                iSizeToSend -= 2;
+                        }
 					    theApp.packet_no++;
 					    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
 				    }
@@ -119,6 +135,11 @@ UINT CallbackThread_Proc(LPVOID lParm)
 				    {
 					    memset((void*)theApp.bPacket, 0, sizeof(theApp.bPacket));
 					    memcpy((void*)theApp.bPacket, (void*)(theApp.bPacketDownLink), theApp.BytesDownLinkRead);
+                        for (int iAn=0; iAn <theApp.BytesDownLinkRead; iAn++)
+                        {
+                            theApp.PrePorocess(theApp.bPacket[iAn]);
+                        }
+                        // scan for distance packet
 #ifdef _TEST_BIN_DATA
                         theApp.BytesDownLinkRead = 128;
                         for (int iInptr = 0; iInptr< 128; iInptr++)
@@ -127,12 +148,19 @@ UINT CallbackThread_Proc(LPVOID lParm)
                         }
 #endif
 					    theApp.MakeHex();
-					    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=512)
+                        int iSizeToSend = 512;
+					    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=iSizeToSend)
 					    {
-						    int iSizeToSend = 512;
+						    
 						    if ((theApp.iOutptr - iSend) <= 512)
 							    iSizeToSend = (theApp.iOutptr - iSend);
-
+                            else
+                            {
+                                if (theApp.tmpWebServerResp[iSend+iSizeToSend] == '%')
+                                    ;
+                                else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 2] == '%')
+                                    iSizeToSend -= 2;
+                            }
 						    theApp.packet_no++;
 						    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
 					    }
@@ -487,7 +515,230 @@ BOOL CGrStnApp::InitInstance()
 	return FALSE;
 }
 
+BOOL CGrStnApp::PrePorocess(unsigned char bByte)
+{
+    switch(StatusDistance)
+    {
+    case 0: 
+        if (bByte == '9')
+            StatusDistance =1;
+        break;
+    case 1:
+        if (bByte == '9')
+            StatusDistance =2;
+        else
+            StatusDistance =0;
+        break;
+    case 2:
+        if (bByte == 'D')
+        {
+            StatusDistance =3;
+            StatusEsc = 0;
+            DM2=DM1;
+        }
+        else
+            StatusDistance =0;
+        break;
+    case 3: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXaTmr1 = bByte;
+        StatusDistance =4;
+        break;
+    case 4:if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXaTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 5;
+        break;
+    case 5: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXaTmr1H = bByte;
+        StatusDistance = 6;
+        break;
+    case 6: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXaTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 7;
+        break;
+    case 7: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXbTmr1 = bByte;
+        StatusDistance = 8;
+        break;
+    case 8: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXbTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 9;
+        break;
+    case 9: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXbTmr1H = bByte;
+        StatusDistance = 10;
+        break;
+    case 10: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.RXbTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 11;
+        break;
+    case 11: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXaTmr1 = bByte;
+        StatusDistance = 12;
+        break;
+    case 12: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXaTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 13;
+        break;
+    case 13: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXaTmr1H = bByte;
+        StatusDistance = 14;
+        break;
+    case 14: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXaTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 15;
+        break;
+    case 15: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXbTmr1 = bByte;
+        StatusDistance = 16;
+        break;
+    case 16: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXbTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 17;
+        break;
+    case 17: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXbTmr1H = bByte;
+        StatusDistance = 18;
+        break;
+    case 18: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXbTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 19;
+        break;
+    case 19: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXPeriod = bByte;
+        StatusDistance = 20;
+        break;
+    case 20: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.TXPeriod |= ((WORD)bByte)<<8;
+        StatusDistance = 21;
+        break;
 
+   case 21:if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXaTmr1 = bByte;
+        StatusDistance = 22;
+        break;
+ 
+    case 22:if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXaTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 23;
+        break;
+    case 23: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXaTmr1H = bByte;
+        StatusDistance = 24;
+        break;
+    case 24: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXaTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 25;
+        break;
+    case 25: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXbTmr1 = bByte;
+        StatusDistance = 26;
+        break;
+    case 26: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXbTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 27;
+        break;
+    case 27: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXbTmr1H = bByte;
+        StatusDistance = 28;
+        break;
+    case 28: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ERXbTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 29;
+        break;
+    case 29: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXaTmr1 = bByte;
+        StatusDistance = 30;
+        break;
+    case 30: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXaTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 31;
+        break;
+    case 31: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXaTmr1H = bByte;
+        StatusDistance = 32;
+        break;
+    case 32: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXaTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 33;
+        break;
+    case 33: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXbTmr1 = bByte;
+        StatusDistance = 34;
+        break;
+    case 34: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXbTmr1 |= ((WORD)bByte)<<8;
+        StatusDistance = 35;
+        break;
+    case 35: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXbTmr1H = bByte;
+        StatusDistance = 36;
+        break;
+    case 36: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXbTmr1H |= ((WORD)bByte)<<8;
+        StatusDistance = 37;
+        break;
+    case 37: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXPeriod = bByte;
+        StatusDistance = 38;
+        break;
+    case 38: if (StatusEsc) StatusEsc=0; else if (bByte == '#') { StatusEsc = 1; break; }
+        DM1.ETXPeriod |= ((WORD)bByte)<<8;
+        StatusDistance = 39;
+        break;
+    case 39:
+        if (bByte == '9')
+        {
+            for (int i= 99; i >0; i --)
+            {
+                DTimeEarth[i]=DTimeEarth[i-1];
+                DTimeLuna[i]=DTimeLuna[i-1];
+                Distance[i]=Distance[i-1];
+            }
+            iMeasurements++;
+            DTimeEarth[0] = (DWORD)(DM2.ERXaTmr1H - DM2.ETXaTmr1H -1)*(0x10000 - (DWORD)DM2.ETXPeriod) + 
+                (0x10000-(DWORD)DM2.ETXaTmr1) + 
+                (DWORD)DM2.ERXaTmr1-(DWORD)DM2.ETXPeriod;
+            DTimeLuna[0] = ((DWORD)DM1.TXaTmr1H - (DWORD)DM1.RXbTmr1H-1)*(0x10000 - (DWORD)DM2.TXPeriod) +
+            (0x10000 - (DWORD)DM1.RXbTmr1) +
+                ((DWORD)(DWORD)DM1.TXaTmr1 - (DWORD)DM1.TXPeriod);
+            Distance[0]= DTimeEarth[0] - DTimeLuna[0];
+            //39 44 
+            //2F E5 CB 4F 
+            //D8 E3 BF 4F <-rx 4fbf e3d8
+            //E7 5B C4 4F ->tx 4fc4 5be7
+            //E9 5B B8 4F 
+            //45 40 
+            //87 92 F9 2D <-RX 2df9 9287
+            //EE 93 ED 2D 
+            //C9 5B F5 2D ->TX 2df5 5bc9
+            //CA 5B E9 2D 
+            //27 40 
+            //39 
+            //
+            //39 44 
+            //95 E6 D7 4F 
+            //2F E5 CB 4F <-rx 4fcb e52f
+            //E8 5B D0 4F ->tx 4fd0 5be8
+            //E7 5B C4 4F 
+            //45 40 
+            //21 91 05 2E <-RX 2e05 9121
+            //87 92 F9 2D 
+            //C9 5B 01 2E ->TX 2e01 5bc9
+            //C9 5B F5 2D 
+            //27 40 
+            //39 
+
+            StatusDistance =1;
+        }
+        else
+        {
+
+            StatusDistance =0;
+        }
+        break;
+    }
+    return TRUE;
+}
 BOOL CGrStnApp::MakeHex(void)
 {
 	int iInptr;

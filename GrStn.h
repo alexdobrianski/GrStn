@@ -15,7 +15,32 @@
 // CGrStnApp:
 // See GrStn.cpp for the implementation of this class
 //
+#pragma pack(push)
+#pragma pack(1)
+typedef struct
+{
+WORD RXaTmr1;
+WORD RXaTmr1H;
+WORD RXbTmr1;
+WORD RXbTmr1H;
+WORD TXaTmr1;
+WORD TXaTmr1H;
+WORD TXbTmr1;
+WORD TXbTmr1H;
+WORD TXPeriod;
 
+WORD ERXaTmr1;
+WORD ERXaTmr1H;
+WORD ERXbTmr1;
+WORD ERXbTmr1H;
+WORD ETXaTmr1;
+WORD ETXaTmr1H;
+WORD ETXbTmr1;
+WORD ETXbTmr1H;
+WORD ETXPeriod;
+
+} DISTMEASURE;
+#pragma pack(pop)
 class CGrStnApp : public CWinApp
 {
 public:
@@ -93,6 +118,15 @@ public:
 	BOOL ServerOnline;
 	BOOL SendDownLink(char *pktType, char *StartData, int iSizeToSend);
 	BOOL MakeHex(void);
+    BOOL PrePorocess(unsigned char bByte);
+    int StatusDistance;
+    int StatusEsc;
+    DISTMEASURE DM1;
+    DISTMEASURE DM2;
+    DWORD DTimeEarth[100];
+    DWORD DTimeLuna[100];
+    DWORD Distance[100];
+    int iMeasurements;
     CString MakeItReadable(char * packet, int length);
 // Implementation
 
