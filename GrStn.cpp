@@ -13,7 +13,6 @@
 #define new DEBUG_NEW
 #endif
 
-
 // CGrStnApp
 
 BEGIN_MESSAGE_MAP(CGrStnApp, CWinApp)
@@ -23,7 +22,7 @@ END_MESSAGE_MAP()
 
 extern CGrStnDlg *CurentDlgBox;
 // CGrStnApp construction
-
+int iGMeasurements;
 CGrStnApp::CGrStnApp()
 {
 	// TODO: add construction code here,
@@ -46,11 +45,12 @@ CGrStnApp::CGrStnApp()
     memset(DTimeLuna, 0, sizeof(DTimeLuna));
     memset(Distance, 0, sizeof(Distance));
     iMeasurements = 0;
-
+    iGMeasurements = iMeasurements;
 }
 
 
 // The one and only CGrStnApp object
+
 
 CGrStnApp theApp;
 HINSTANCE hMainInstance;
@@ -165,8 +165,41 @@ UINT CallbackThread_Proc(LPVOID lParm)
 						    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
 					    }
                     }
+                    char MyByffer[256];
+                    double dSL = 299792458.0;
+                    double distance = 0.0;
+                    double Medium = theApp.Distance[0];
+                    double MediumCount = 1.0;
+                    for (int i=1; i< iGMeasurements;i++)
+                    {
+                        Medium /=MediumCount;
+                        if ((theApp.Distance[i] < (Medium*1.5)) && (theApp.Distance[i] > (Medium*0.5)))
+                        {
+                            Medium *=MediumCount;
+                            Medium += theApp.Distance[i];
+                            MediumCount+=1.0;
+                        }
+                        else
+                            Medium *=MediumCount;
+                    }
+                    Medium/=MediumCount;
+                    if (theApp.Distance[0])
+                    {
+                        sprintf(MyByffer,"%d",theApp.Distance[0]);
+                    
+                        CurentDlgBox->GetDlgItem(IDC_EDITCICLES)-> SetWindowText( MyByffer );
+                        //sprintf(MyByffer,"%d",(theApp.Distance[0]-210));
+                        distance = theApp.Distance[0] - 210.0;
+                        distance = distance/16000000.0 * dSL;
+                        distance /=2;
+                        sprintf(MyByffer,"%f",distance);
+                        CurentDlgBox->GetDlgItem(IDC_EDITDISTANCE_M)-> SetWindowText( MyByffer );
 
-					    // in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
+                        sprintf(MyByffer,"%f",Medium);
+                        CurentDlgBox->GetDlgItem(IDC_EDITDISTANCE_M2)-> SetWindowText( MyByffer );
+                        
+                    }
+					// in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
 					theApp.BytesDownLinkRead = 0;
 					::ResetEvent(theApp.Ovlpd.hEvent);
 					memset((void*)(theApp.bPacketDownLink), 0, sizeof(theApp.bPacketDownLink));
@@ -695,6 +728,10 @@ BOOL CGrStnApp::PrePorocess(unsigned char bByte)
                 Distance[i]=Distance[i-1];
             }
             iMeasurements++;
+            iGMeasurements = iMeasurements;
+            if (iMeasurements>(sizeof(Distance)/sizeof(DWORD)))
+                iMeasurements = (sizeof(Distance)/sizeof(DWORD));
+
             DTimeEarth[0] = (DWORD)(DM2.ERXaTmr1H - DM2.ETXaTmr1H -1)*(0x10000 - (DWORD)DM2.ETXPeriod) + 
                 (0x10000-(DWORD)DM2.ETXaTmr1) + 
                 (DWORD)DM2.ERXaTmr1-(DWORD)DM2.ETXPeriod;
