@@ -8,6 +8,7 @@
 #include <Mmsystem.h>
 #include "GrStn.h"
 #include "GrStnDlg.h"
+#include "math.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -46,6 +47,7 @@ CGrStnApp::CGrStnApp()
     memset(Distance, 0, sizeof(Distance));
     iMeasurements = 0;
     iGMeasurements = iMeasurements;
+    Medium = 0.0;
 }
 
 
@@ -168,35 +170,56 @@ UINT CallbackThread_Proc(LPVOID lParm)
                     char MyByffer[256];
                     double dSL = 299792458.0;
                     double distance = 0.0;
-                    double Medium = theApp.Distance[0];
+                    
                     double MediumCount = 1.0;
-                    for (int i=1; i< iGMeasurements;i++)
+                    int i = 0;
+                    if (theApp.Medium == 0.0)
+                       theApp.Medium = (long int)theApp.Distance[0];
+                    //else
+                    //    i=-1;
+                    
+                    
+                    //theApp.Medium = (long int)theApp.Distance[i];
+                    for (int j = i; j< iGMeasurements;j++)
                     {
-                        Medium /=MediumCount;
-                        if ((theApp.Distance[i] < (Medium*1.5)) && (theApp.Distance[i] > (Medium*0.5)))
+                        theApp.Medium /=MediumCount;
+                        if (((long int)theApp.Distance[j] < (theApp.Medium*10.0)) && ((long int)theApp.Distance[j] > (-theApp.Medium*10.0)))
                         {
-                            Medium *=MediumCount;
-                            Medium += theApp.Distance[i];
+                            theApp.Medium *=MediumCount;
+                            theApp.Medium += (long int)theApp.Distance[j];
                             MediumCount+=1.0;
                         }
                         else
-                            Medium *=MediumCount;
+                            theApp.Medium *=MediumCount;
                     }
-                    Medium/=MediumCount;
+                    theApp.Medium/=MediumCount;
+                    double Disp = (long int)theApp.Distance[i] - theApp.Medium;
+                    Disp *=Disp;
+                    for (int j = i+1; j< iGMeasurements;j++)
+                    {
+                        if (((long int)theApp.Distance[j] < (theApp.Medium*10.0)) && ((long int)theApp.Distance[j] > (theApp.Medium*10.0)))
+                        {
+                            Disp += ((long int)theApp.Distance[j]-theApp.Medium) * ((long int)theApp.Distance[j]-theApp.Medium);
+                        }
+                    }
+                    Disp = sqrt(Disp)/MediumCount;
                     if (theApp.Distance[0])
                     {
-                        sprintf(MyByffer,"%d",theApp.Distance[0]);
+                        sprintf(MyByffer,"%d",(long int)theApp.Distance[i]);
                     
                         CurentDlgBox->GetDlgItem(IDC_EDITCICLES)-> SetWindowText( MyByffer );
                         //sprintf(MyByffer,"%d",(theApp.Distance[0]-210));
-                        distance = theApp.Distance[0] - 210.0;
+                        distance = (long int)theApp.Distance[0]-14;
                         distance = distance/16000000.0 * dSL;
                         distance /=2;
                         sprintf(MyByffer,"%f",distance);
                         CurentDlgBox->GetDlgItem(IDC_EDITDISTANCE_M)-> SetWindowText( MyByffer );
 
-                        sprintf(MyByffer,"%f",Medium);
+                        sprintf(MyByffer,"%f",theApp.Medium);
                         CurentDlgBox->GetDlgItem(IDC_EDITDISTANCE_M2)-> SetWindowText( MyByffer );
+
+                        sprintf(MyByffer,"%f",Disp);
+                        CurentDlgBox->GetDlgItem(IDC_EDITDISP)-> SetWindowText( MyByffer );
                         
                     }
 					// in buffer (theApp.bPacketDownLink) already data == needs to send data to SatCtrl
@@ -721,7 +744,7 @@ BOOL CGrStnApp::PrePorocess(unsigned char bByte)
     case 39:
         if (bByte == '9')
         {
-            for (int i= 99; i >0; i --)
+            for (int i= 399; i >0; i --)
             {
                 DTimeEarth[i]=DTimeEarth[i-1];
                 DTimeLuna[i]=DTimeLuna[i-1];

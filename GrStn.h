@@ -123,9 +123,10 @@ public:
     int StatusEsc;
     DISTMEASURE DM1;
     DISTMEASURE DM2;
-    DWORD DTimeEarth[100];
-    DWORD DTimeLuna[100];
-    DWORD Distance[100];
+    DWORD DTimeEarth[400];
+    DWORD DTimeLuna[400];
+    DWORD Distance[400];
+    double Medium;
     int iMeasurements;
     CString MakeItReadable(char * packet, int length);
 // Implementation
