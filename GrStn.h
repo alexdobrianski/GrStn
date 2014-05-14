@@ -109,10 +109,10 @@ public:
 	BOOL SessionNSet;
 	BOOL PacketUpLinkSet;
 	BOOL PacketPing;
-	unsigned char bPacketUpLink[4098];
-	unsigned char bPacketUpLinkBin[4098];
+	unsigned char bPacketUpLink[200000];
+	unsigned char bPacketUpLinkBin[200000];
     BOOL UpLinkDone;
-	unsigned char bPacketDownLink[4098];
+	unsigned char bPacketDownLink[4048];
 	DWORD BytesDownLinkRead;
     DWORD BytesUplinkWritten;
 	BOOL ServerOnline;
