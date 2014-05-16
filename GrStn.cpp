@@ -109,14 +109,19 @@ UINT CallbackThread_Proc(LPVOID lParm)
                     int iSizeToSend = 512;
 				    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=iSizeToSend)
 				    {
-					    if ((theApp.iOutptr - iSend) <= 512)
+					    iSizeToSend = 512;
+						if ((theApp.iOutptr - iSend) <= 512)
 						    iSizeToSend = (theApp.iOutptr - iSend);
                         else
                         {
                             if (theApp.tmpWebServerResp[iSend+iSizeToSend] == '%')
                                 ;
+                            else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 3] == '%')
+                                ;
                             else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 2] == '%')
                                 iSizeToSend -= 2;
+                            else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 1] == '%')
+                                iSizeToSend -= 1;
                         }
 					    theApp.packet_no++;
 					    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
@@ -153,15 +158,19 @@ UINT CallbackThread_Proc(LPVOID lParm)
                         int iSizeToSend = 512;
 					    for (int iSend = 0; iSend< theApp.iOutptr; iSend+=iSizeToSend)
 					    {
-						    
+						    iSizeToSend = 512;
 						    if ((theApp.iOutptr - iSend) <= 512)
 							    iSizeToSend = (theApp.iOutptr - iSend);
                             else
                             {
                                 if (theApp.tmpWebServerResp[iSend+iSizeToSend] == '%')
                                     ;
+                                else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 3] == '%')
+                                    ;
                                 else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 2] == '%')
                                     iSizeToSend -= 2;
+                                else if (theApp.tmpWebServerResp[iSend + iSizeToSend - 1] == '%')
+                                    iSizeToSend -= 1;
                             }
 						    theApp.packet_no++;
 						    theApp.SendDownLink("2", &theApp.tmpWebServerResp[iSend], iSizeToSend);
@@ -977,7 +986,7 @@ BOOL CGrStnApp::SendDownLink(char *pktType, char *StartData, int iSizeToSend)
 							
 							strTemp += "\r\n";
 							//strTemp += (char*)bPacket;
-                            strTemp += MakeItReadable((char*)bPacket, BytesDownLinkRead);
+                            strTemp += MakeItReadable((char*)StartData, iSizeToSend);
 							CurentDlgBox->m_DownLink.SetWindowText(strTemp);
 							//CurentDlgBox->GetDlgItem(IDC_EDIT_DOWNLINK)->SetWindowTextA(strTemp);
 							
