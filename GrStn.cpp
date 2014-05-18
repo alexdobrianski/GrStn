@@ -1012,7 +1012,7 @@ BOOL CGrStnApp::SendDownLink(char *pktType, char *StartData, int iSizeToSend)
 CString CGrStnApp::MakeItReadable(char * packet, int length)
 {
     CString StrOutput;
-    for (int i = 0; i < length; i++)
+    for (int i = 0; i < length-1; i++)
     {
         if ((packet[i] >= ' ') && (packet[i] <= '~'))
         {
